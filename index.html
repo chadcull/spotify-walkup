@@ -168,8 +168,9 @@ function renderRoster(){
 
 async function playSong(i){
   const p = roster[i];
-  if(!accessToken || !spotifyPlayer){
-    alert('Spotify not ready');
+
+  if(!accessToken || !spotifyPlayer || !deviceId){
+    alert('Spotify not ready yet');
     return;
   }
 
@@ -180,19 +181,19 @@ async function playSong(i){
         'Authorization':`Bearer ${accessToken}`,
         'Content-Type':'application/json'
       },
-      body:JSON.stringify({uris:[p.uri]})
+      body:JSON.stringify({ uris:[p.uri] })
     });
 
-    setTimeout(()=>spotifyPlayer.seek(p.startMs),500);
+    setTimeout(()=>spotifyPlayer.seek(p.startMs), 600);
 
-    // Fade IN over 2 seconds
+    // Fade IN (2s)
     let target = getMaxVolume();
     let v = 0;
+
     spotifyPlayer.setVolume(0);
 
     const stepTime = 100;
-    const duration = 2000;
-    const steps = duration / stepTime;
+    const steps = 2000 / stepTime;
     const step = target / steps;
 
     const fadeIn = setInterval(()=>{
@@ -260,7 +261,9 @@ async function loginSpotify(){
 }
 
 async function handleCallback(){
-  const code = new URLSearchParams(window.location.search).get('code');
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+
   if(!code) return;
 
   const verifier = localStorage.getItem('verifier');
@@ -280,24 +283,44 @@ async function handleCallback(){
   });
 
   const data = await res.json();
+
+  if(!data.access_token){
+    console.error('Token error:', data);
+    alert('Login failed. Check Spotify app settings.');
+    return;
+  }
+
   accessToken = data.access_token;
 
+  // clean URL safely (IMPORTANT FIX)
   window.history.replaceState({},document.title,'/spotify-walkup/');
 }
 
 window.onSpotifyWebPlaybackSDKReady = async () => {
+
   await handleCallback();
+
+  if(!accessToken){
+    console.log('No access token yet');
+    return;
+  }
 
   spotifyPlayer = new Spotify.Player({
     name:'Walkup',
     getOAuthToken: cb => cb(accessToken),
-    volume: getMaxVolume()
+    volume: 0.8
   });
 
   spotifyPlayer.addListener('ready',({device_id})=>{
     deviceId = device_id;
     window.spotifyPlayerReady = true;
+    console.log('Device ready:', deviceId);
   });
+
+  spotifyPlayer.addListener('initialization_error', ({ message }) => console.error(message));
+  spotifyPlayer.addListener('authentication_error', ({ message }) => console.error(message));
+  spotifyPlayer.addListener('account_error', ({ message }) => console.error(message));
+  spotifyPlayer.addListener('playback_error', ({ message }) => console.error(message));
 
   spotifyPlayer.connect();
 };
