@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Walk-Up Music 3</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #f4f4f4;
+    }
+
+    h1 { text-align: center; }
+
+    .login-btn {
+      width: 100%;
+      background: #1DB954;
+      color: white;
+      font-size: 18px;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+
+    .controls {
+      position: sticky;
+      top: 0;
+      background: white;
+      padding: 12px;
+      margin-bottom: 12px;
+      border-radius: 10px;
+    }
+
+    input {
+      font-size: 16px;
+      padding: 6px;
+      width: 80px;
+    }
+
+    button {
+      font-size: 16px;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .stop-btn {
+      width: 100%;
+      background: #d9534f;
+      color: white;
+      margin-top: 8px;
+    }
+
+    .player {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      padding: 14px;
+      margin-bottom: 10px;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      cursor: grab;
+    }
+
+    .player.dragging { opacity: 0.5; }
+
+    .player-name {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .play-btn {
+      background: #28a745;
+      color: white;
+      min-width: 90px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>⚾ Walk-Up Music</h1>
+
+<button class="login-btn" onclick="loginSpotify()">Login with Spotify</button>
+
+<div class="controls">
+  <label><strong>Max Volume (%)</strong></label>
+  <input id="maxVolume" type="number" min="1" max="100" value="80" />
+
+  <button class="stop-btn" onclick="fadeOut()">🔉 Fade Out</button>
+  <button class="stop-btn" onclick="stopAll()">⏹ Stop</button>
+</div>
+
+<div id="players"></div>
+
+<script>
+let spotifyPlayer;
+let deviceId;
+let accessToken = null;
+let draggedEl = null;
+
+const clientId = 'cfcbe7373fe441de9787e80668277b0e';
+const redirectUri = 'https://chadcull.github.io/spotify-walkup/callback';
+
+window.spotifyPlayerReady = false;
+
+const roster = [
+  { name:'Brad', uri:'spotify:track:1GzNGrxi4NIOKu0Z4npUss', startMs:30000 },
+  { name:'Carter', uri:'spotify:track:52KvuGmgcgRdrLMXOtda0E', startMs:50000 },
+  { name:'Chase', uri:'spotify:track:1pr9TZGOXeJUggIal1Wq3R', startMs:45000 },
+  { name:'Evan', uri:'spotify:track:1GzNGrxi4NIOKu0Z4npUss', startMs:30000 }
+];
+
+function getMaxVolume(){
+  const v = parseInt(document.getElementById('maxVolume').value || '80');
+  return Math.min(1, Math.max(0.01, v/100));
+}
+
+function renderRoster(){
+  const c = document.getElementById('players');
+  c.innerHTML='';
+
+  roster.forEach((p,i)=>{
+    const div=document.createElement('div');
+    div.className='player';
+    div.draggable=true;
+    div.dataset.index=i;
+
+    div.innerHTML=`
+      <div class="player-name">${i+1}. ${p.name}</div>
+      <button class="play-btn">▶ Play</button>
+    `;
+
+    div.addEventListener('dragstart',()=>{
+      draggedEl = div;
+      div.classList.add('dragging');
+    });
+
+    div.addEventListener('dragend',()=>{
+      div.classList.remove('dragging');
+      draggedEl = null;
+    });
+
+    div.addEventListener('dragover',e=>e.preventDefault());
+
+    div.addEventListener('drop',(e)=>{
+      e.preventDefault();
+      const target = div;
+      if(draggedEl && draggedEl !== target){
+        const from = Number(draggedEl.dataset.index);
+        const to = Number(target.dataset.index);
+
+        const moved = roster.splice(from,1)[0];
+        roster.splice(to,0,moved);
+        renderRoster();
+      }
+    });
+
+    div.querySelector('.play-btn').addEventListener('click',()=>playSong(i));
+
+    c.appendChild(div);
+  });
+}
+
+async function playSong(i){
+  const p = roster[i];
+  if(!accessToken || !spotifyPlayer){
+    alert('Spotify not ready');
+    return;
+  }
+
+  try {
+    await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,{
+      method:'PUT',
+      headers:{
+        'Authorization':`Bearer ${accessToken}`,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({uris:[p.uri]})
+    });
+
+    setTimeout(()=>spotifyPlayer.seek(p.startMs),500);
+
+    // Fade IN over 2 seconds
+    let target = getMaxVolume();
+    let v = 0;
+    spotifyPlayer.setVolume(0);
+
+    const stepTime = 100;
+    const duration = 2000;
+    const steps = duration / stepTime;
+    const step = target / steps;
+
+    const fadeIn = setInterval(()=>{
+      v += step;
+      if(v >= target){
+        spotifyPlayer.setVolume(target);
+        clearInterval(fadeIn);
+        return;
+      }
+      spotifyPlayer.setVolume(v);
+    }, stepTime);
+
+  } catch(e){
+    console.error(e);
+    alert('Playback failed');
+  }
+}
+
+function stopAll(){
+  if(spotifyPlayer) spotifyPlayer.pause();
+}
+
+function fadeOut(){
+  if(!spotifyPlayer) return;
+
+  let v = getMaxVolume();
+  spotifyPlayer.setVolume(v);
+
+  const duration = 3000;
+  const stepTime = 100;
+  const steps = duration / stepTime;
+  const step = v / steps;
+
+  const t = setInterval(()=>{
+    v -= step;
+    if(v <= 0){
+      spotifyPlayer.setVolume(0);
+      spotifyPlayer.pause();
+      clearInterval(t);
+      return;
+    }
+    spotifyPlayer.setVolume(v);
+  }, stepTime);
+}
+
+async function loginSpotify(){
+  const v = crypto.randomUUID();
+  localStorage.setItem('verifier', v);
+
+  const enc = new TextEncoder().encode(v);
+  const hash = await crypto.subtle.digest('SHA-256', enc);
+  const challenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: 'code',
+    redirect_uri: redirectUri,
+    code_challenge_method: 'S256',
+    code_challenge: challenge,
+    scope: 'streaming user-modify-playback-state user-read-playback-state'
+  });
+
+  window.location = `https://accounts.spotify.com/authorize?${params}`;
+}
+
+async function handleCallback(){
+  const code = new URLSearchParams(window.location.search).get('code');
+  if(!code) return;
+
+  const verifier = localStorage.getItem('verifier');
+
+  const body = new URLSearchParams({
+    client_id: clientId,
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: redirectUri,
+    code_verifier: verifier
+  });
+
+  const res = await fetch('https://accounts.spotify.com/api/token',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body
+  });
+
+  const data = await res.json();
+  accessToken = data.access_token;
+
+  window.history.replaceState({},document.title,'/spotify-walkup/');
+}
+
+window.onSpotifyWebPlaybackSDKReady = async () => {
+  await handleCallback();
+
+  spotifyPlayer = new Spotify.Player({
+    name:'Walkup',
+    getOAuthToken: cb => cb(accessToken),
+    volume: getMaxVolume()
+  });
+
+  spotifyPlayer.addListener('ready',({device_id})=>{
+    deviceId = device_id;
+    window.spotifyPlayerReady = true;
+  });
+
+  spotifyPlayer.connect();
+};
+
+renderRoster();
+</script>
+<script src="https://sdk.scdn.co/spotify-player.js"></script>
+</body>
+</html>
