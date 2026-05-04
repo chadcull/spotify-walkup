@@ -292,12 +292,10 @@ async function handleCallback(){
 
   accessToken = data.access_token;
 
-  // clean URL safely (IMPORTANT FIX)
-  window.history.replaceState({},document.title,'/spotify-walkup/');
+  window.history.replaceState({},document.title, window.location.pathname);
 }
 
-window.onSpotifyWebPlaybackSDKReady = async () => {
-
+async function initSpotifyPlayer(){
   await handleCallback();
 
   if(!accessToken){
@@ -323,7 +321,15 @@ window.onSpotifyWebPlaybackSDKReady = async () => {
   spotifyPlayer.addListener('playback_error', ({ message }) => console.error(message));
 
   spotifyPlayer.connect();
+}
+
+window.onSpotifyWebPlaybackSDKReady = () => {
+  initSpotifyPlayer();
 };
+
+window.addEventListener('load', async () => {
+  await handleCallback();
+});
 
 renderRoster();
 </script>
