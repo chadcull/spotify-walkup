@@ -95,7 +95,6 @@
 
 <button class="login-btn" onclick="loginSpotify()">Login with Spotify</button>
 
-<div class="controls">
   <label><strong>Paste Player JSON</strong></label>
   <textarea id="jsonInput">[
 {"name": "Brad", "number": 30, "uri": "spotify:track:1GzNGrxi4NIOKu0Z4npUss", "startMs": 0} ,
@@ -115,6 +114,7 @@
 ]</textarea>
 
   <button class="load-btn" onclick="loadRosterFromJson()">Load JSON</button>
+<div class="controls">
 
   <label><strong>Max Volume (%)</strong></label>
   <input id="maxVolume" type="number" min="1" max="100" value="80" />
