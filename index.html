@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Walk-Up Music 2</title>
+  <title>Walk-Up Music</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -72,8 +72,23 @@
 </head>
 <body>
 
-<h1>⚾ Walk-Up Music 514</h1>
+<h1>⚾ Walk-Up Music</h1>
+<h2>This commit should have ✅ drag/drop lineup reordering
+✅ max volume actually affects Spotify playback
+✅ 2-second fade-in on play
+✅ 3-second fade-out
+✅ Stop button pauses Spotify
+✅ fade timers get cleared so fade-in/fade-out don’t fight each other</h2>
+<h3>Test in this order:
 
+Login with Spotify
+Click a player → should:
+play
+seek to timestamp
+fade in over ~2 sec
+Click Fade Out → fades over ~3 sec then pauses
+Click Stop during playback → immediate pause
+Drag player and drop elsewhere → lineup reorders</h3>
 <button class="login-btn" onclick="loginSpotify()">Login with Spotify</button>
 
 <div class="controls">
@@ -89,13 +104,11 @@
 let spotifyPlayer;
 let deviceId;
 let accessToken = null;
-let currentAudio = null;
+let fadeTimer = null;
 
 const clientId = 'cfcbe7373fe441de9787e80668277b0e';
 const redirectUri = 'https://chadcull.github.io/spotify-walkup/callback';
-
 window.spotifyPlayerReady = false;
-
 let draggedIndex = null;
 
 const roster = [
@@ -104,6 +117,11 @@ const roster = [
   { name:'Chase', uri:'spotify:track:1pr9TZGOXeJUggIal1Wq3R', startMs:45000 },
   { name:'Evan', uri:'spotify:track:1GzNGrxi4NIOKu0Z4npUss', startMs:30000 }
 ];
+
+function getMaxVolume(){
+  const v = parseInt(document.getElementById('maxVolume').value || '80');
+  return Math.min(1, Math.max(0.01, v / 100));
+}
 
 function renderRoster() {
   const c = document.getElementById('players');
@@ -120,14 +138,22 @@ function renderRoster() {
       <button class="play-btn" data-index="${i}">▶ Play</button>
     `;
 
-    div.addEventListener('dragstart',()=>{ draggedIndex=i; div.classList.add('dragging'); });
-    div.addEventListener('dragend',()=>div.classList.remove('dragging'));
+    div.addEventListener('dragstart',()=>{
+      draggedIndex=i;
+      div.classList.add('dragging');
+    });
+
+    div.addEventListener('dragend',()=>{
+      div.classList.remove('dragging');
+    });
+
     div.addEventListener('dragover',e=>e.preventDefault());
 
     div.addEventListener('drop',()=>{
-      const target=i;
+      if(draggedIndex === null || draggedIndex === i) return;
       const moved=roster.splice(draggedIndex,1)[0];
-      roster.splice(target,0,moved);
+      roster.splice(i,0,moved);
+      draggedIndex = null;
       renderRoster();
     });
 
@@ -146,37 +172,56 @@ async function playSong(i){
     return;
   }
 
-  await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
-  {
+  if (fadeTimer) clearInterval(fadeTimer);
+
+  await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
     method:'PUT',
     headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
     body:JSON.stringify({uris:[p.uri]})
   });
 
-  setTimeout(()=>spotifyPlayer.seek(p.startMs),600);
+  setTimeout(async ()=>{
+    await spotifyPlayer.seek(p.startMs);
+
+    let volume = 0;
+    const target = getMaxVolume();
+    spotifyPlayer.setVolume(0);
+
+    fadeTimer = setInterval(()=>{
+      volume += target / 20;
+      if(volume >= target){
+        spotifyPlayer.setVolume(target);
+        clearInterval(fadeTimer);
+        return;
+      }
+      spotifyPlayer.setVolume(volume);
+    },100);
+  },600);
 }
 
 function stopAll(){
-  if(currentAudio){
-    currentAudio.pause();
-    currentAudio.currentTime=0;
+  if (fadeTimer) clearInterval(fadeTimer);
+  if(spotifyPlayer){
+    spotifyPlayer.pause();
   }
 }
 
 function fadeOut(){
-  if(!currentAudio)return;
-  const d=3000,iv=100;
-  const step=currentAudio.volume/(d/iv);
+  if(!spotifyPlayer) return;
+  if (fadeTimer) clearInterval(fadeTimer);
 
-  const f=setInterval(()=>{
-    if(currentAudio.volume<=step){
-      currentAudio.pause();
-      currentAudio.currentTime=0;
-      clearInterval(f);
+  let volume = getMaxVolume();
+
+  fadeTimer = setInterval(()=>{
+    volume -= getMaxVolume() / 30;
+    if(volume <= 0){
+      spotifyPlayer.setVolume(0);
+      spotifyPlayer.pause();
+      clearInterval(fadeTimer);
       return;
     }
-    currentAudio.volume=Math.max(0,currentAudio.volume-step);
-  },iv);
+    spotifyPlayer.setVolume(volume);
+  },100);
 }
 
 async function loginSpotify(){
@@ -186,7 +231,7 @@ async function loginSpotify(){
   const enc=new TextEncoder().encode(v);
   const hash=await crypto.subtle.digest('SHA-256',enc);
   const challenge=btoa(String.fromCharCode(...new Uint8Array(hash)))
-  .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 
   const params=new URLSearchParams({
     client_id:clientId,
@@ -202,7 +247,7 @@ async function loginSpotify(){
 
 async function handleCallback(){
   const code=new URLSearchParams(window.location.search).get('code');
-  if(!code)return;
+  if(!code) return;
 
   const verifier=localStorage.getItem('verifier');
 
