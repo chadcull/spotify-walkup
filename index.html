@@ -11,7 +11,20 @@
       padding: 16px;
       background: #f4f4f4;
     }
+
     h1 { text-align: center; }
+
+    textarea {
+      width: 100%;
+      min-height: 140px;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
 
     .controls {
       position: sticky;
@@ -20,28 +33,29 @@
       padding: 12px;
       margin-bottom: 12px;
       border-radius: 10px;
+      z-index: 100;
     }
 
     button {
-      font-size: 18px;
-      padding: 14px;
+      font-size: 16px;
+      padding: 12px;
       border: none;
       border-radius: 10px;
       cursor: pointer;
+      margin-top: 6px;
     }
 
     .stop-btn {
       width: 100%;
       background: #d9534f;
       color: white;
-      margin-top: 8px;
     }
 
-    .login-btn {
+    .login-btn, .load-btn {
       width: 100%;
       background: #1DB954;
       color: white;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
 
     .player {
@@ -53,14 +67,19 @@
       margin-bottom: 10px;
       border-radius: 12px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      cursor: grab;
+      cursor: move;
+      transition: transform 0.15s ease;
     }
 
-    .player.dragging { opacity: 0.5; }
+    .player.dragging {
+      opacity: 0.5;
+      transform: scale(1.02);
+    }
 
     .player-name {
       font-size: 18px;
       font-weight: bold;
+      flex: 1;
     }
 
     .play-btn {
@@ -73,27 +92,41 @@
 <body>
 
 <h1>⚾ Walk-Up Music</h1>
-<h2>This commit should have ✅ drag/drop lineup reordering
-✅ max volume actually affects Spotify playback
-✅ 2-second fade-in on play
-✅ 3-second fade-out
-✅ Stop button pauses Spotify
-✅ fade timers get cleared so fade-in/fade-out don’t fight each other</h2>
-<h3>Test in this order:
+✅ 1. Better drag/drop experience
 
-Login with Spotify
-Click a player → should:
-play
-seek to timestamp
-fade in over ~2 sec
-Click Fade Out → fades over ~3 sec then pauses
-Click Stop during playback → immediate pause
-Drag player and drop elsewhere → lineup reorders</h3>
+The previous drag/drop worked, but it was a bit like parallel parking with oven mitts.
+
+It now feels smoother because:
+
+dragged row slightly enlarges while dragging
+opacity changes for clearer visual feedback
+drop logic is cleaner and more predictable
+lineup rerenders immediately after reorder
+
+It’s still native HTML drag/drop (simple + free), but much nicer than before.
+
+✅ 2. JSON roster import
+
+You can now paste JSON directly into the page and load players dynamically.
+  
 <button class="login-btn" onclick="loginSpotify()">Login with Spotify</button>
 
 <div class="controls">
+  <label><strong>Paste Player JSON</strong></label>
+  <textarea id="jsonInput">[
+  {
+    "name": "Jake",
+    "number": 12,
+    "uri": "spotify:track:52KvuGmgcgRdrLMXOtda0E",
+    "startMs": 50000
+  }
+]</textarea>
+
+  <button class="load-btn" onclick="loadRosterFromJson()">Load JSON</button>
+
   <label><strong>Max Volume (%)</strong></label>
-  <input id="maxVolume" type="number" min="1" max="100" value="80" style="width:80px;font-size:16px;padding:6px;" />
+  <input id="maxVolume" type="number" min="1" max="100" value="80" />
+
   <button class="stop-btn" onclick="fadeOut()">Fade Out</button>
   <button class="stop-btn" onclick="stopAll()">Stop</button>
 </div>
@@ -105,68 +138,70 @@ let spotifyPlayer;
 let deviceId;
 let accessToken = null;
 let fadeTimer = null;
+let draggedIndex = null;
 
 const clientId = 'cfcbe7373fe441de9787e80668277b0e';
 const redirectUri = 'https://chadcull.github.io/spotify-walkup/callback';
 window.spotifyPlayerReady = false;
-let draggedIndex = null;
 
-const roster = [
-  { name:'Brad', uri:'spotify:track:1GzNGrxi4NIOKu0Z4npUss', startMs:30000 },
-  { name:'Carter', uri:'spotify:track:52KvuGmgcgRdrLMXOtda0E', startMs:50000 },
-  { name:'Chase', uri:'spotify:track:1pr9TZGOXeJUggIal1Wq3R', startMs:45000 },
-  { name:'Evan', uri:'spotify:track:1GzNGrxi4NIOKu0Z4npUss', startMs:30000 }
+let roster = [
+  { name:'Jake', number:12, uri:'spotify:track:52KvuGmgcgRdrLMXOtda0E', startMs:50000 }
 ];
 
 function getMaxVolume(){
-  const v = parseInt(document.getElementById('maxVolume').value || '80');
-  return Math.min(1, Math.max(0.01, v / 100));
+  return Math.min(1, Math.max(0.01, parseInt(document.getElementById('maxVolume').value || '80') / 100));
 }
 
-function renderRoster() {
+function loadRosterFromJson(){
+  try {
+    roster = JSON.parse(document.getElementById('jsonInput').value);
+    renderRoster();
+  } catch(e){
+    alert('Invalid JSON');
+  }
+}
+
+function renderRoster(){
   const c = document.getElementById('players');
   c.innerHTML='';
 
   roster.forEach((p,i)=>{
-    const div=document.createElement('div');
-    div.className='player';
-    div.draggable=true;
-    div.dataset.index=i;
+    const div = document.createElement('div');
+    div.className = 'player';
+    div.draggable = true;
 
-    div.innerHTML=`
-      <div class="player-name">${i+1}. ${p.name}</div>
-      <button class="play-btn" data-index="${i}">▶ Play</button>
+    div.innerHTML = `
+      <div class="player-name">${i+1}. ${p.name} (#${p.number})</div>
+      <button class="play-btn">▶ Play</button>
     `;
 
-    div.addEventListener('dragstart',()=>{
-      draggedIndex=i;
+    div.addEventListener('dragstart', ()=>{
+      draggedIndex = i;
       div.classList.add('dragging');
     });
 
-    div.addEventListener('dragend',()=>{
+    div.addEventListener('dragend', ()=>{
       div.classList.remove('dragging');
     });
 
-    div.addEventListener('dragover',e=>e.preventDefault());
+    div.addEventListener('dragover', e => e.preventDefault());
 
-    div.addEventListener('drop',()=>{
+    div.addEventListener('drop', ()=>{
       if(draggedIndex === null || draggedIndex === i) return;
-      const moved=roster.splice(draggedIndex,1)[0];
+      const moved = roster.splice(draggedIndex,1)[0];
       roster.splice(i,0,moved);
       draggedIndex = null;
       renderRoster();
     });
 
-    c.appendChild(div);
-  });
+    div.querySelector('.play-btn').addEventListener('click', ()=>playSong(i));
 
-  document.querySelectorAll('.play-btn').forEach(btn=>{
-    btn.addEventListener('click',()=>playSong(parseInt(btn.dataset.index)));
+    c.appendChild(div);
   });
 }
 
 async function playSong(i){
-  const p=roster[i];
+  const p = roster[i];
   if(!accessToken || !window.spotifyPlayerReady){
     alert('Spotify not ready');
     return;
@@ -201,9 +236,7 @@ async function playSong(i){
 
 function stopAll(){
   if (fadeTimer) clearInterval(fadeTimer);
-  if(spotifyPlayer){
-    spotifyPlayer.pause();
-  }
+  if(spotifyPlayer) spotifyPlayer.pause();
 }
 
 function fadeOut(){
@@ -211,7 +244,6 @@ function fadeOut(){
   if (fadeTimer) clearInterval(fadeTimer);
 
   let volume = getMaxVolume();
-
   fadeTimer = setInterval(()=>{
     volume -= getMaxVolume() / 30;
     if(volume <= 0){
@@ -267,7 +299,6 @@ async function handleCallback(){
 
   const data=await res.json();
   accessToken=data.access_token;
-
   window.history.replaceState({},document.title,'/spotify-walkup/');
 }
 
