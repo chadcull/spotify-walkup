@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- redeploy -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Walk-Up Music - Preloaded</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #f4f4f4;
+    }
+
+    h1 { text-align: center; }
+
+    textarea {
+      width: 100%;
+      min-height: 70px;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
+
+    .controls {
+      position: sticky;
+      top: 0;
+      background: white;
+      padding: 12px;
+      margin-bottom: 12px;
+      border-radius: 10px;
+      z-index: 100;
+    }
+
+    button {
+      font-size: 16px;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+
+    .stop-btn {
+      width: 45%;
+      background: #d9534f;
+      color: white;
+    }
+
+    .login-btn, .load-btn {
+      width: 100%;
+      background: #1DB954;
+      color: white;
+      margin-bottom: 8px;
+    }
+
+    .player {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      padding: 14px;
+      margin-bottom: 10px;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      cursor: move;
+      transition: transform 0.15s ease;
+    }
+
+    .player.dragging {
+      opacity: 0.5;
+      transform: scale(1.02);
+    }
+
+    .player-name {
+      font-size: 18px;
+      font-weight: bold;
+      flex: 1;
+    }
+
+    .play-btn {
+      background: #28a745;
+      color: white;
+      min-width: 100px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>⚾ Walk-Up Music</h1>
+
+<button class="login-btn" onclick="loginSpotify()">Login with Spotify</button>
+
+  <label><strong>Paste Player JSON</strong></label>
+  <textarea id="jsonInput">[
+{"name": "Brad", "number": 30, "uri": "spotify:track:1GzNGrxi4NIOKu0Z4npUss", "startMs": 0} ,
+{"name": "Carter", "number": 21, "uri": "spotify:track:1dGg92GTw7PeonUfyPmpCp", "startMs": 106000} ,
+{"name": "Chase", "number": 17, "uri": "spotify:track:1pr9TZGOXeJUggIal1Wq3R", "startMs": 0} ,
+{"name": "Evan", "number": 27, "uri": "spotify:track:2QpGZOhTCHHiKmpSO9FW4h", "startMs": 0} ,
+{"name": "Jake", "number": 12, "uri": "spotify:track:52KvuGmgcgRdrLMXOtda0E", "startMs": 5000} ,
+{"name": "Joey", "number": 22, "uri": "spotify:track:2DmZ7aPhT5jkqLIYxTpQlJ", "startMs": 0} ,
+{"name": "Josh", "number": 34, "uri": "spotify:track:1udOZftd1UOs5WTDPrG97k", "startMs": 0} ,
+{"name": "Kyle", "number": 15, "uri": "spotify:track:7vrLphPq4yjaX7jiDdd2Nc", "startMs": 0} ,
+{"name": "Lucas", "number": 3, "uri": "spotify:track:1158ckiB5S4cpsdYHDB9IF", "startMs": 0} ,
+{"name": "Matteo", "number": 4, "uri": "spotify:track:1D70EbZoedMGzZWYZvfQIY", "startMs": 0} ,
+{"name": "Milan", "number": 44, "uri": "spotify:track:7y9yjpRtZajYzVpXHRjwGz", "startMs": 0} ,
+{"name": "Nick", "number": 11, "uri": "spotify:track:1vO7XJH8q1LBzobiVwZ2qU", "startMs": 0} ,
+{"name": "Paul", "number": 47, "uri": "spotify:track:5NGDrUGW3ZGnxH3zIJquHM", "startMs": 0} ,
+{"name": "Wade", "number": 9, "uri": "spotify:track:5VGAlq9o0u09jZavGLUfdo", "startMs": 0} 
+]</textarea>
+
+  <button class="load-btn" onclick="loadRosterFromJson()">Load JSON</button>
+
+  <label><strong>Max Volume (%)</strong></label>
+  <input id="maxVolume" type="number" min="1" max="100" value="75" />
+<div class="controls">
+
+  <button class="stop-btn" onclick="fadeOut()">Fade Out</button>
+  <button class="stop-btn" onclick="stopAll()">Stop</button>
+</div>
+
+<div id="players"></div>
+
+<script>
+let spotifyPlayer;
+let deviceId;
+let accessToken = null;
+let fadeTimer = null;
+let draggedIndex = null;
+
+const clientId = 'cfcbe7373fe441de9787e80668277b0e';
+const redirectUri = 'https://chadcull.github.io/spotify-walkup/callback';
+window.spotifyPlayerReady = false;
+
+let roster = [
+  { name:'Jake', number:12, uri:'spotify:track:52KvuGmgcgRdrLMXOtda0E', startMs:50000 }
+];
+
+function getMaxVolume(){
+  return Math.min(1, Math.max(0.01, parseInt(document.getElementById('maxVolume').value || '80') / 100));
+}
+
+function loadRosterFromJson(){
+  try {
+    roster = JSON.parse(document.getElementById('jsonInput').value);
+    renderRoster();
+  } catch(e){
+    alert('Invalid JSON');
+  }
+}
+
+function renderRoster(){
+  const c = document.getElementById('players');
+  c.innerHTML='';
+
+  roster.forEach((p,i)=>{
+    const div = document.createElement('div');
+    div.className = 'player';
+    div.draggable = true;
+
+    div.innerHTML = `
+      <div class="player-name">${i+1}. ${p.name} (#${p.number})</div>
+      <button class="play-btn">▶ Play</button>
+    `;
+
+    div.addEventListener('dragstart', ()=>{
+      draggedIndex = i;
+      div.classList.add('dragging');
+    });
+
+    div.addEventListener('dragend', ()=>{
+      div.classList.remove('dragging');
+    });
+
+    div.addEventListener('dragover', e => e.preventDefault());
+
+    div.addEventListener('drop', ()=>{
+      if(draggedIndex === null || draggedIndex === i) return;
+      const moved = roster.splice(draggedIndex,1)[0];
+      roster.splice(i,0,moved);
+      draggedIndex = null;
+      renderRoster();
+    });
+
+    div.querySelector('.play-btn').addEventListener('click', ()=>playSong(i));
+
+    c.appendChild(div);
+  });
+}
+
+async function playSong(i){
+  const p = roster[i];
+  if(!accessToken || !window.spotifyPlayerReady){
+    alert('Spotify not ready');
+    return;
+  }
+
+  if (fadeTimer) clearInterval(fadeTimer);
+
+  await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+    method:'PUT',
+    headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+    body:JSON.stringify({uris:[p.uri]})
+  });
+
+  setTimeout(async ()=>{
+    await spotifyPlayer.seek(p.startMs);
+
+    let volume = 0;
+    const target = getMaxVolume();
+    spotifyPlayer.setVolume(0);
+
+    fadeTimer = setInterval(()=>{
+      volume += target / 20;
+      if(volume >= target){
+        spotifyPlayer.setVolume(target);
+        clearInterval(fadeTimer);
+        return;
+      }
+      spotifyPlayer.setVolume(volume);
+    },100);
+  },600);
+}
+
+function stopAll(){
+  if (fadeTimer) clearInterval(fadeTimer);
+  if(spotifyPlayer) spotifyPlayer.pause();
+}
+
+function fadeOut(){
+  if(!spotifyPlayer) return;
+  if (fadeTimer) clearInterval(fadeTimer);
+
+  let volume = getMaxVolume();
+  fadeTimer = setInterval(()=>{
+    volume -= getMaxVolume() / 30;
+    if(volume <= 0){
+      spotifyPlayer.setVolume(0);
+      spotifyPlayer.pause();
+      clearInterval(fadeTimer);
+      return;
+    }
+    spotifyPlayer.setVolume(volume);
+  },100);
+}
+
+async function loginSpotify(){
+  const v=[...crypto.getRandomValues(new Uint8Array(64))].map(x=>x.toString(16)).join('');
+  localStorage.setItem('verifier',v);
+
+  const enc=new TextEncoder().encode(v);
+  const hash=await crypto.subtle.digest('SHA-256',enc);
+  const challenge=btoa(String.fromCharCode(...new Uint8Array(hash)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+  const params=new URLSearchParams({
+    client_id:clientId,
+    response_type:'code',
+    redirect_uri:redirectUri,
+    code_challenge_method:'S256',
+    code_challenge:challenge,
+    scope:'streaming user-modify-playback-state user-read-playback-state'
+  });
+
+  window.location=`https://accounts.spotify.com/authorize?${params}`;
+}
+
+async function handleCallback(){
+  const code=new URLSearchParams(window.location.search).get('code');
+  if(!code) return;
+
+  const verifier=localStorage.getItem('verifier');
+
+  const body=new URLSearchParams({
+    client_id:clientId,
+    grant_type:'authorization_code',
+    code,
+    redirect_uri:redirectUri,
+    code_verifier:verifier
+  });
+
+  const res=await fetch('https://accounts.spotify.com/api/token',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body
+  });
+
+  const data=await res.json();
+  accessToken=data.access_token;
+  window.history.replaceState({},document.title,'/spotify-walkup/');
+}
+
+window.onSpotifyWebPlaybackSDKReady=async()=>{
+  await handleCallback();
+
+  spotifyPlayer=new Spotify.Player({
+    name:'Walkup',
+    getOAuthToken:cb=>cb(accessToken),
+    volume:0.5
+  });
+
+  spotifyPlayer.addListener('ready',({device_id})=>{
+    deviceId=device_id;
+    window.spotifyPlayerReady=true;
+  });
+
+  spotifyPlayer.connect();
+};
+
+renderRoster();
+</script>
+<script src="https://sdk.scdn.co/spotify-player.js"></script>
+</body>
+</html>
