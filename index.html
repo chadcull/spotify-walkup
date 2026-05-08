@@ -68,10 +68,8 @@
       top: 0;
       background: white;
       padding: 12px;
-      margin-bottom: 12px;
-      border-radius: 10px;
-      z-index: 100;
-      box-shadow: var(--shadow);
+      border-radius: 0px;
+      z-index: 100;      
     }
 
     .control-row {
@@ -127,7 +125,7 @@
     .tab-btn {
       background: #e5e5e5;
       font-weight: bold;
-      padding: 12px 8px;
+      padding: 6px 8px;
       white-space: nowrap;
     }
 
@@ -141,10 +139,10 @@
 
     .panel-card {
       background: white;
-      padding: 12px;
-      border-radius: 12px;
+      padding: 10px;
+      border-radius: 0px;
       box-shadow: var(--shadow);
-      margin-bottom: 12px;
+      margin-bottom: 0px;
     }
 
     .row-controls {
@@ -152,6 +150,12 @@
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
+    }
+
+    .team-action-card {
+      position: sticky;
+      top: 128px;
+      z-index: 90;
     }
 
     .mode-btn.active { outline: 3px solid #333; background: #fff3cd; }
@@ -164,8 +168,8 @@
       justify-content: space-between;
       align-items: center;
       background: white;
-      padding: 14px;
-      margin-bottom: 10px;
+      padding: 6px;
+      margin-bottom: 6px;
       border-radius: 12px;
       box-shadow: var(--shadow);
       cursor: pointer;
@@ -206,6 +210,7 @@
       .login-section .login-btn { width: 100%; }
       .tabs { flex-wrap: nowrap; overflow-x: auto; }
       .tabs .tab-btn { flex: 1 0 auto; }
+      .team-action-card { top: 150px; }
       .player, .clip-card { padding: 12px; }
       .player-name, .clip-name { font-size: 16px; }
       .play-btn { min-width: 82px; }
@@ -225,7 +230,7 @@
       <button class="stop-btn" onclick="stopAll()">Stop</button>
       <span id="internetDot" class="status-icon">● WiFi</span>
       <span id="spotifyDot" class="status-icon">● Spotify</span>
-      <button class="test-btn" onclick="playTestSound()">🔊 Sound Test</button>
+      <button class="test-btn" onclick="playTestSound()">🔊</button>
     </div>
 
     <div class="control-row">
@@ -240,8 +245,7 @@
   </div>
 
   <section id="panelOur" class="tab-panel active">
-    <div class="panel-card">
-      <h2>Our Team</h2>
+    <div class="panel-card team-action-card">
       <div class="row-controls">
         <button id="ourResetBtn" class="load-btn" onclick="toggleResetPanel('our')">Reset Data</button>
         <button id="ourLineupBtn" class="mode-btn" onclick="toggleLineupMode('our')">Set Lineup Order</button>
@@ -258,8 +262,7 @@
   </section>
 
   <section id="panelOpponents" class="tab-panel">
-    <div class="panel-card">
-      <h2>Opposition</h2>
+    <div class="panel-card team-action-card">
       <div class="row-controls">
         <button id="opponentsResetBtn" class="load-btn" onclick="toggleResetPanel('opponents')">Reset Data</button>
         <button id="opponentsLineupBtn" class="mode-btn" onclick="toggleLineupMode('opponents')">Set Lineup Order</button>
