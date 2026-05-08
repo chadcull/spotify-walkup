@@ -29,7 +29,7 @@
       margin-left: 4px;
     }
 
-    .player.selected-swap { background: #fff3cd; }
+    .player.selected-swap { background: #fff3cd !important; border: 3px solid #f0ad4e; }
     .player {
       display:flex; justify-content:space-between; align-items:center; background:white;
       padding:14px; margin-bottom:10px; border-radius:12px; box-shadow:0 2px 4px rgba(0,0,0,0.1);
@@ -78,8 +78,8 @@
 <div class="controls">
   <button class="fade-btn" onclick="fadeOut()">Fade Out</button>
   <button class="stop-btn" onclick="stopAll()">Stop</button>
-  <span id="internetDot" class="status-icon">📶</span>
-  <span id="spotifyDot" class="status-icon">🎵</span>
+  <span id="internetDot" class="status-icon">● WiFi</span>
+  <span id="spotifyDot" class="status-icon">● Spotify</span>
 </div>
 
 <div style="margin-bottom:12px; display:flex; gap:8px;">
@@ -132,7 +132,10 @@ function renderRoster(){
 
     div.innerHTML=`${badge}<div class="player-name">${i+1}. ${p.name} (#${p.number})</div><button class="play-btn">▶ Play</button>`;
 
-    div.addEventListener('click',()=>handlePlayerClick(originalIndex));
+    div.addEventListener('click',()=>{
+      handlePlayerClick(originalIndex);
+      renderRoster();
+    });
     div.querySelector('.play-btn').addEventListener('click',(e)=>{ e.stopPropagation(); playSong(originalIndex); });
     c.appendChild(div);
 
