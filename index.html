@@ -78,9 +78,12 @@
 <div class="controls">
   <button class="fade-btn" onclick="fadeOut()">Fade Out</button>
   <button class="stop-btn" onclick="stopAll()">Stop</button>
+
   <span id="internetDot" class="status-icon">● WiFi</span>
   <span id="spotifyDot" class="status-icon">● Spotify</span>
   <span id="volumeDisplay" class="status-icon">🔊 --%</span>
+
+  <button class="test-btn" onclick="playTestSound()">🔊 Test Sound</button>
 </div>
 
 <div style="margin-bottom:12px; display:flex; gap:8px;">
@@ -121,7 +124,16 @@ setInterval(updateStatusDots, 2000);
 updateStatusDots();
 
 function loadRosterFromJson(){
-  try { roster = JSON.parse(document.getElementById('jsonInput').value); renderRoster(); }
+  try { roster = JSON.parse(document.getElementById('jsonInput').value); renderRoster();
+
+function playTestSound(){
+  const audio = new Audio('assets/test.mp3');
+  audio.volume = 1.0;
+  audio.play().catch(err => {
+    alert('Audio blocked — tap the screen once then try again');
+    console.error(err);
+  });
+} }
   catch(e){ alert('Invalid JSON'); }
 }
 
