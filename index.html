@@ -21,7 +21,8 @@
     .stop-btn { background: #d9534f; color: white; }
     .fade-btn { background: #f0ad4e; color: white; }
     .test-btn { background: #9999ee; color: black; }
-    .login-btn, .load-btn { width: 100%; background: #1DB954; color: white; margin-bottom: 8px; }
+    .login-btn  { width: 45%; background: #1DB954; color: white; margin-bottom: 8px; }
+    .load-btn  { width: 45%; background: red; color: white; margin-bottom: 8px; }
     .mode-btn.active { outline: 3px solid #333; }
 
    .status-icon {
@@ -57,9 +58,10 @@
 </head>
 <body>
 <h1>⚾ Walk-Up Music</h1>
-<button class="login-btn" onclick="loginSpotify()">Login with Spotify</button>
+<button class="login-btn" onclick="loginSpotify()">Login to Spotify</button>
+<button class="load-btn" onclick="toggleResetPanel()">Reset Data</button>
 
-<div>
+<div id="resetPanel" style="display:none;">
   <label><strong>Paste Player JSON</strong></label>
   <textarea id="jsonInput">[
 {"name": "Brad", "number": 30, "uri": "spotify:track:1GzNGrxi4NIOKu0Z4npUss", "startMs": 0},
@@ -433,6 +435,13 @@ window.onSpotifyWebPlaybackSDKReady = async () => {
 
   spotifyPlayer.connect();
 };
+
+function toggleResetPanel() {
+  const panel = document.getElementById('resetPanel');
+
+  panel.style.display =
+    panel.style.display === 'none' ? 'block' : 'none';
+}
 
 loadSavedGameState();
 
