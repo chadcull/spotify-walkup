@@ -1,457 +1,358 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Walk-Up Music</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 16px; background: #f4f4f4; }
-    h1 { text-align: center; }
-    textarea {
-      width: 100%; min-height: 140px; font-family: monospace; font-size: 14px;
-      padding: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 10px;
-    }
-    .controls {
-      position: sticky; top: 0; background: white; padding: 12px; margin-bottom: 12px;
-      border-radius: 10px; z-index: 100; display:flex; gap:8px; align-items:center; flex-wrap:wrap;
-    }
-    button {
-      font-size: 14px; padding: 6px; border: none; border-radius: 10px; cursor: pointer; font-weight: normal;
-    }
-    .stop-btn { background: #d9534f; color: white; }
-    .fade-btn { background: #f0ad4e; color: white; }
-    .test-btn { background: #9999ee; color: black; }
-    .login-btn  { width: 45%; background: #1DB954; color: white; margin-bottom: 8px; }
-    .load-btn  { width: 45%; background: red; color: white; margin-bottom: 8px; }
-    .mode-btn.active { outline: 3px solid #333; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Ballpark Music Manager</title>
 
-   .status-icon {
-      font-size: 12px;
-      padding: 6px 10px;
-      background: #eee;
-      border-radius: 8px;
-      display: inline-block;
-      text-align: center;
-      
-    }
+<style>
+body { font-family: Arial, sans-serif; margin:0; padding:16px; background:#f4f4f4; }
+h1 { text-align:center; }
 
-    .player.selected-swap { background: #fff3cd !important; border: 3px solid #f0ad4e; }
-    .player {
-      display:flex; justify-content:space-between; align-items:center; background:white;
-      padding:14px; margin-bottom:10px; border-radius:12px; box-shadow:0 2px 4px rgba(0,0,0,0.1);
-      cursor:pointer; position:relative;
-    }
-    .player.dragging { opacity:0.5; }
-    .player-name { font-size:18px; font-weight:bold; flex:1; }
-    .play-btn { background:#28a745; color:white; min-width:100px; }
+button {
+  font-size:14px;
+  padding:6px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+}
 
-    .order-badge {
-      position:absolute; top:6px; right:6px; background:#007bff; color:white;
-      width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-      font-size:12px;
-    }
+.controls {
+  position:sticky;
+  top:0;
+  background:white;
+  padding:12px;
+  margin-bottom:12px;
+  border-radius:10px;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+}
 
-    .bench-divider {
-      border-top:4px solid black; margin:20px 0 10px; padding-top:10px; font-weight:bold;
-    }
-  </style>
+.login-btn { background:#1DB954; color:white; width:48%; }
+.fade-btn { background:#f0ad4e; color:white; }
+.stop-btn { background:#d9534f; color:white; }
+.test-btn { background:#9999ee; }
+
+.status-icon {
+  font-size:12px;
+  padding:6px 10px;
+  background:#eee;
+  border-radius:8px;
+}
+
+.tabs {
+  display:flex;
+  gap:8px;
+  margin-bottom:12px;
+}
+
+.tab-btn {
+  flex:1;
+  background:#ddd;
+}
+
+.tab-btn.active {
+  background:#333;
+  color:white;
+}
+
+.section { display:none; }
+.section.active { display:block; }
+
+.player {
+  background:white;
+  padding:12px;
+  margin-bottom:8px;
+  border-radius:10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.play-btn {
+  background:#28a745;
+  color:white;
+}
+
+textarea {
+  width:100%;
+  min-height:120px;
+  font-family:monospace;
+  margin-bottom:8px;
+}
+
+.hiddenPanel { display:none; }
+
+.card {
+  background:white;
+  padding:10px;
+  margin-bottom:8px;
+  border-radius:10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+</style>
 </head>
-<body>
-<h1>⚾ Walk-Up Music</h1>
-<button class="login-btn" onclick="loginSpotify()">Login to Spotify</button>
-<button class="load-btn" onclick="toggleResetPanel()">Reset Data</button>
 
-<div id="resetPanel" style="display:none;">
-  <label><strong>Paste Player JSON</strong></label>
-  <textarea id="jsonInput">[
-{"name": "Brad", "number": 30, "uri": "spotify:track:1GzNGrxi4NIOKu0Z4npUss", "startMs": 0},
-{"name": "Carter", "number": 21, "uri": "spotify:track:1dGg92GTw7PeonUfyPmpCp", "startMs": 106000},
-{"name": "Chase", "number": 17, "uri": "spotify:track:1pr9TZGOXeJUggIal1Wq3R", "startMs": 0},
-{"name": "Evan", "number": 27, "uri": "spotify:track:2QpGZOhTCHHiKmpSO9FW4h", "startMs": 0},
-{"name": "Jake", "number": 12, "uri": "spotify:track:52KvuGmgcgRdrLMXOtda0E", "startMs": 5000},
-{"name": "Joey", "number": 22, "uri": "spotify:track:2DmZ7aPhT5jkqLIYxTpQlJ", "startMs": 0},
-{"name": "Josh", "number": 34, "uri": "spotify:track:1udOZftd1UOs5WTDPrG97k", "startMs": 0},
-{"name": "Kyle", "number": 15, "uri": "spotify:track:7vrLphPq4yjaX7jiDdd2Nc", "startMs": 0},
-{"name": "Lucas", "number": 3, "uri": "spotify:track:1158ckiB5S4cpsdYHDB9IF", "startMs": 0},
-{"name": "Matteo", "number": 4, "uri": "spotify:track:1D70EbZoedMGzZWYZvfQIY", "startMs": 0},
-{"name": "Milan", "number": 44, "uri": "spotify:track:7y9yjpRtZajYzVpXHRjwGz", "startMs": 0},
-{"name": "Nick", "number": 11, "uri": "spotify:track:1vO7XJH8q1LBzobiVwZ2qU", "startMs": 0},
-{"name": "Paul", "number": 47, "uri": "spotify:track:5NGDrUGW3ZGnxH3zIJquHM", "startMs": 0},
-{"name": "Wade", "number": 9, "uri": "spotify:track:5VGAlq9o0u09jZavGLUfdo", "startMs": 0}
-]</textarea>
-  <button class="load-btn" onclick="loadRosterFromJson()">Load JSON</button>
-</div>
+<body>
+
+<h1>⚾ Ballpark Music</h1>
 
 <div class="controls">
-  <button class="fade-btn" onclick="fadeOut()">Fade Out</button>
+  <button class="login-btn" onclick="loginSpotify()">Login</button>
+  <button class="fade-btn" onclick="fadeOut()">Fade</button>
   <button class="stop-btn" onclick="stopAll()">Stop</button>
-  <span id="internetDot" class="status-icon">● WiFi</span>
-  <span id="spotifyDot" class="status-icon">● Spotify</span>
-  <button class="test-btn" onclick="playTestSound()">🔊 </button>
+  <button class="test-btn" onclick="playTestSound()">Test</button>
+
+  <span id="wifi" class="status-icon">WiFi</span>
+  <span id="spotify" class="status-icon">Spotify</span>
 </div>
 
-<div style="margin-bottom:12px; display:flex; gap:8px;">
-  <button id="lineupBtn" class="mode-btn" onclick="toggleLineupMode()">Set Lineup Order</button>
-  <button id="subBtn" class="mode-btn" onclick="toggleSubMode()">Substitute</button>
+<div class="tabs">
+  <button class="tab-btn active" onclick="setTab('team')">Our Team</button>
+  <button class="tab-btn" onclick="setTab('opp')">Opponents</button>
+  <button class="tab-btn" onclick="setTab('music')">Extra Music</button>
 </div>
 
-<div id="players"></div>
+<!-- TEAM -->
+<div id="team" class="section active">
+  <button onclick="togglePanel('teamPanel')">Reset Data</button>
+  <div id="teamPanel" class="hiddenPanel">
+    <textarea id="teamJson"></textarea>
+    <button onclick="loadTeam()">Load Team</button>
+  </div>
+  <div id="teamRoster"></div>
+</div>
+
+<!-- OPPONENTS -->
+<div id="opp" class="section">
+  <button onclick="togglePanel('oppPanel')">Reset Data</button>
+  <div id="oppPanel" class="hiddenPanel">
+    <textarea id="oppJson"></textarea>
+    <button onclick="loadOpp()">Load Opponents</button>
+  </div>
+  <div id="oppRoster"></div>
+</div>
+
+<!-- MUSIC -->
+<div id="music" class="section">
+
+  <h3>Between Innings</h3>
+  <button onclick="playRandomSong()">Play a Song</button>
+
+  <h3>Sound Effects</h3>
+  <div id="clips"></div>
+
+  <textarea id="clipsJson"></textarea>
+  <button onclick="loadClips()">Load Clips</button>
+
+</div>
 
 <script>
-let spotifyPlayer, deviceId, accessToken = null, fadeTimer = null;
-let currentBatterIndex = null;
 
-let lineupMode = false;
-let subMode = false;
-let lineupSelections = [];
-let swapSelections = [];
+let accessToken=null, deviceId=null, spotifyPlayer=null;
+let fadeTimer=null, clipTimer=null;
 
-const clientId = 'cfcbe7373fe441de9787e80668277b0e';
-const redirectUri = 'https://chadcull.github.io/spotify-walkup/callback';
+let ourRoster=[], oppRoster=[], clips=[];
 
-window.spotifyPlayerReady = false;
-let roster = [];
-function saveGameState() {
-  localStorage.setItem('savedRoster', JSON.stringify(roster));
-  localStorage.setItem('savedLineup', JSON.stringify(lineupSelections));
+let activeTab='team';
+
+function setTab(t){
+  activeTab=t;
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById(t).classList.add('active');
+
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
 }
 
-function loadSavedGameState() {
-  const savedRoster = localStorage.getItem('savedRoster');
-  const savedLineup = localStorage.getItem('savedLineup');
-
-  if (savedRoster) {
-    roster = JSON.parse(savedRoster);
-  }
-
-  if (savedLineup) {
-    lineupSelections = JSON.parse(savedLineup);
-  }
-}
-  
-function loadRosterFromJson() {
-  try {
-    roster = JSON.parse(document.getElementById('jsonInput').value);
-
-    lineupSelections = [];
-    swapSelections = [];
-    currentBatterIndex = null;
-    lineupMode = false;
-    subMode = false;
-
-    document.getElementById('lineupBtn').classList.remove('active');
-    document.getElementById('subBtn').classList.remove('active');
-
-    saveGameState();
-    renderRoster();
-  } catch (e) {
-    alert('Invalid JSON');
-  }
-}
-function updateStatusDots() {
-  document.getElementById('internetDot').style.background =
-    navigator.onLine ? '#b6f7b6' : '#f7b6b6';
-
-  document.getElementById('spotifyDot').style.background =
-    window.spotifyPlayerReady ? '#b6f7b6' : '#f7b6b6';
+function togglePanel(id){
+  const el=document.getElementById(id);
+  el.style.display = el.style.display==='block'?'none':'block';
 }
 
-setInterval(updateStatusDots, 2000);
+/* ---------- PLAYBACK CORE ---------- */
 
-function renderRoster() {
-  const c = document.getElementById('players');
-  c.innerHTML = '';
+function stopAll(){
+  if(fadeTimer) clearInterval(fadeTimer);
+  if(clipTimer) clearTimeout(clipTimer);
+  if(spotifyPlayer) spotifyPlayer.pause();
+}
 
-  const starters = lineupSelections.map(index => roster[index]);
-  const bench = roster.filter((_, i) => !lineupSelections.includes(i));
-  const orderedRoster = lineupSelections.length
-    ? [...starters, ...bench]
-    : roster;
+function fadeOut(){
+  if(!spotifyPlayer) return;
+  let v=1;
+  if(fadeTimer) clearInterval(fadeTimer);
 
-  orderedRoster.forEach((p, i) => {
-    const originalIndex = roster.indexOf(p);
-    const div = document.createElement('div');
-    div.className = 'player';
-
-    if (subMode && swapSelections.includes(originalIndex)) {
-      div.classList.add('selected-swap');
+  fadeTimer=setInterval(()=>{
+    v-=0.05;
+    if(v<=0){
+      stopAll();
+      return;
     }
+    spotifyPlayer.setVolume(v);
+  },100);
+}
 
-    const icon =
-      currentBatterIndex === originalIndex
-        ? '<img src="images/bat.png" style="width:26px;height:auto;">'
-        : '⚾';
+/* ---------- BETWEEN INNINGS ---------- */
 
-    div.innerHTML = `
-      <div class="player-name">${icon} ${i + 1}. ${p.name} (#${p.number})</div>
-      <button class="play-btn">▶ Play</button>
+function playRandomSong(){
+  stopAll();
+
+  const songs = JSON.parse(localStorage.getItem('songs')||'[]');
+  if(!songs.length) return;
+
+  const song = songs[Math.floor(Math.random()*songs.length)];
+
+  spotifyPlayer._options.getOAuthToken(token=>{
+    accessToken=token;
+  });
+
+  fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,{
+    method:'PUT',
+    headers:{
+      Authorization:`Bearer ${accessToken}`,
+      'Content-Type':'application/json'
+    },
+    body:JSON.stringify({uris:[song.uri]})
+  });
+
+  setTimeout(()=>spotifyPlayer.seek(song.startMs||0),500);
+}
+
+/* ---------- CLIPS ---------- */
+
+function loadClips(){
+  clips = JSON.parse(document.getElementById('clipsJson').value);
+  renderClips();
+}
+
+function renderClips(){
+  const c=document.getElementById('clips');
+  c.innerHTML='';
+
+  clips.forEach((clip,i)=>{
+    const div=document.createElement('div');
+    div.className='card';
+
+    div.innerHTML=`
+      <div>${clip.name}</div>
+      <button>▶</button>
     `;
 
-    div.addEventListener('click', () => {
-      handlePlayerClick(originalIndex);
-    });
-
-    div.querySelector('.play-btn').addEventListener('click', e => {
-      e.stopPropagation();
-      playSong(originalIndex);
-    });
+    div.querySelector('button').onclick=()=>{
+      playClip(clip);
+    };
 
     c.appendChild(div);
-
-    if (
-      lineupSelections.length &&
-      i === lineupSelections.length - 1 &&
-      bench.length
-    ) {
-      const divider = document.createElement('div');
-      divider.className = 'bench-divider';
-      divider.innerText = 'On the Bench';
-      c.appendChild(divider);
-    }
   });
 }
 
-function handlePlayerClick(index) {
-  if (lineupMode) {
-    const existing = lineupSelections.indexOf(index);
+function playClip(clip){
+  stopAll();
 
-    if (existing >= 0) {
-      lineupSelections.splice(existing, 1);
-    } else {
-      lineupSelections.push(index);
-    }
+  fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,{
+    method:'PUT',
+    headers:{
+      Authorization:`Bearer ${accessToken}`,
+      'Content-Type':'application/json'
+    },
+    body:JSON.stringify({uris:[clip.uri]})
+  });
 
-    saveGameState();
-    renderRoster();
-    return;
-  }
+  setTimeout(()=>{
+    spotifyPlayer.seek(clip.startMs||0);
 
-  if (subMode) {
-    const existing = swapSelections.indexOf(index);
+    const duration = (clip.endMs - clip.startMs) - 2000;
 
-    if (existing >= 0) {
-      swapSelections.splice(existing, 1);
-      renderRoster();
-      return;
-    }
+    clipTimer=setTimeout(()=>{
+      fadeOut();
+    }, duration);
 
-    swapSelections.push(index);
-
-    if (swapSelections.length === 2) {
-      const [a, b] = swapSelections;
-      [roster[a], roster[b]] = [roster[b], roster[a]];
-      swapSelections = [];
-      saveGameState();
-      renderRoster();
-    } else {
-      renderRoster();
-    }
-  }
+  },500);
 }
 
-function toggleLineupMode() {
-  lineupMode = !lineupMode;
-  subMode = false;
-  swapSelections = [];
+/* ---------- TEAM / OPPONENTS ---------- */
 
-  document.getElementById('lineupBtn').classList.toggle('active', lineupMode);
-  document.getElementById('subBtn').classList.remove('active');
+function renderRoster(roster, container){
+  const c=document.getElementById(container);
+  c.innerHTML='';
 
-  renderRoster();
-}
+  roster.forEach((p,i)=>{
+    const div=document.createElement('div');
+    div.className='player';
 
-function toggleSubMode() {
-  subMode = !subMode;
-  lineupMode = false;
+    div.innerHTML=`
+      <div>${p.name} (#${p.number})</div>
+      <button class="play-btn">Play</button>
+    `;
 
-  if (!subMode) swapSelections = [];
+    div.querySelector('button').onclick=()=>{
+      playSong(p);
+    };
 
-  document.getElementById('subBtn').classList.toggle('active', subMode);
-  document.getElementById('lineupBtn').classList.remove('active');
-
-  renderRoster();
-}
-
-async function playSong(i) {
-  currentBatterIndex = i;
-  renderRoster();
-
-  if (!accessToken || !window.spotifyPlayerReady) {
-    alert('Spotify not ready');
-    return;
-  }
-
-  if (fadeTimer) clearInterval(fadeTimer);
-
-  await fetch(
-    `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
-    {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        uris: [roster[i].uri]
-      })
-    }
-  );
-
-  setTimeout(async () => {
-    await spotifyPlayer.seek(roster[i].startMs);
-    spotifyPlayer.setVolume(1);
-  }, 600);
-}
-
-function stopAll() {
-  if (fadeTimer) clearInterval(fadeTimer);
-  if (spotifyPlayer) spotifyPlayer.pause();
-}
-
-function fadeOut() {
-  if (!spotifyPlayer) return;
-
-  if (fadeTimer) clearInterval(fadeTimer);
-
-  let volume = 1;
-
-  fadeTimer = setInterval(() => {
-    volume -= 0.05;
-
-    if (volume <= 0) {
-      spotifyPlayer.setVolume(0);
-      spotifyPlayer.pause();
-      clearInterval(fadeTimer);
-      return;
-    }
-
-    spotifyPlayer.setVolume(volume);
-  }, 100);
-}
-
-function playTestSound() {
-  const audio = new Audio('assets/test.mp3');
-  audio.volume = 1;
-
-  audio.play().catch(err => {
-    alert('Tap screen once, then try again');
-    console.error(err);
+    c.appendChild(div);
   });
 }
 
-async function loginSpotify() {
-  const verifier = generateRandomString(128);
-  const challenge = await generateCodeChallenge(verifier);
+function playSong(p){
+  stopAll();
 
-  localStorage.setItem('verifier', verifier);
-
-  const params = new URLSearchParams({
-    client_id: clientId,
-    response_type: 'code',
-    redirect_uri: redirectUri,
-    scope: [
-      'streaming',
-      'user-read-email',
-      'user-read-private',
-      'user-modify-playback-state',
-      'user-read-playback-state'
-    ].join(' '),
-    code_challenge_method: 'S256',
-    code_challenge: challenge
+  fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,{
+    method:'PUT',
+    headers:{
+      Authorization:`Bearer ${accessToken}`,
+      'Content-Type':'application/json'
+    },
+    body:JSON.stringify({uris:[p.uri]})
   });
 
-  window.location = `https://accounts.spotify.com/authorize?${params.toString()}`;
+  setTimeout(()=>spotifyPlayer.seek(p.startMs||0),500);
 }
 
-function generateRandomString(length) {
-  const possible =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+/* ---------- LOADERS ---------- */
 
-  let text = '';
-
-  for (let i = 0; i < length; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-
-  return text;
+function loadTeam(){
+  ourRoster=JSON.parse(document.getElementById('teamJson').value);
+  localStorage.setItem('team',JSON.stringify(ourRoster));
+  renderRoster(ourRoster,'teamRoster');
 }
 
-async function generateCodeChallenge(codeVerifier) {
-  const data = new TextEncoder().encode(codeVerifier);
-  const digest = await window.crypto.subtle.digest('SHA-256', data);
-
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+function loadOpp(){
+  oppRoster=JSON.parse(document.getElementById('oppJson').value);
+  localStorage.setItem('opp',JSON.stringify(oppRoster));
+  renderRoster(oppRoster,'oppRoster');
 }
 
-async function handleCallback() {
-  const code = new URLSearchParams(window.location.search).get('code');
-  if (!code) return;
+function loadSaved(){
+  ourRoster=JSON.parse(localStorage.getItem('team')||'[]');
+  oppRoster=JSON.parse(localStorage.getItem('opp')||'[]');
+}
 
-  const verifier = localStorage.getItem('verifier');
+/* ---------- INIT ---------- */
 
-  const body = new URLSearchParams({
-    client_id: clientId,
-    grant_type: 'authorization_code',
-    code,
-    redirect_uri: redirectUri,
-    code_verifier: verifier
+loadSaved();
+
+/* Spotify init placeholder */
+window.onSpotifyWebPlaybackSDKReady=()=>{
+  spotifyPlayer=new Spotify.Player({
+    name:'Ballpark',
+    getOAuthToken:cb=>cb(accessToken),
+    volume:1
   });
 
-  const res = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body
-  });
-
-  const data = await res.json();
-
-  if (!data.access_token) {
-    console.error(data);
-    alert('Spotify login failed');
-    return;
-  }
-
-  accessToken = data.access_token;
-  window.history.replaceState({}, document.title, '/spotify-walkup/');
-}
-
-window.onSpotifyWebPlaybackSDKReady = async () => {
-  await handleCallback();
-
-  spotifyPlayer = new Spotify.Player({
-    name: 'Walkup',
-    getOAuthToken: cb => cb(accessToken),
-    volume: 1
-  });
-
-  spotifyPlayer.addListener('ready', ({ device_id }) => {
-    deviceId = device_id;
-    window.spotifyPlayerReady = true;
-    updateStatusDots();
+  spotifyPlayer.addListener('ready',({device_id})=>{
+    deviceId=device_id;
   });
 
   spotifyPlayer.connect();
 };
 
-function toggleResetPanel() {
-  const panel = document.getElementById('resetPanel');
-
-  panel.style.display =
-    panel.style.display === 'none' ? 'block' : 'none';
-}
-
-loadSavedGameState();
-
-if (roster.length === 0) {
-  loadRosterFromJson();
-} else {
-  renderRoster();
-}
-
 </script>
+
 <script src="https://sdk.scdn.co/spotify-player.js"></script>
 </body>
 </html>
