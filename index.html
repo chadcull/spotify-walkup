@@ -109,16 +109,43 @@ const redirectUri = 'https://chadcull.github.io/spotify-walkup/callback';
 
 window.spotifyPlayerReady = false;
 let roster = [];
+function saveGameState() {
+  localStorage.setItem('savedRoster', JSON.stringify(roster));
+  localStorage.setItem('savedLineup', JSON.stringify(lineupSelections));
+}
 
+function loadSavedGameState() {
+  const savedRoster = localStorage.getItem('savedRoster');
+  const savedLineup = localStorage.getItem('savedLineup');
+
+  if (savedRoster) {
+    roster = JSON.parse(savedRoster);
+  }
+
+  if (savedLineup) {
+    lineupSelections = JSON.parse(savedLineup);
+  }
+}
+  
 function loadRosterFromJson() {
   try {
     roster = JSON.parse(document.getElementById('jsonInput').value);
+
+    lineupSelections = [];
+    swapSelections = [];
+    currentBatterIndex = null;
+    lineupMode = false;
+    subMode = false;
+
+    document.getElementById('lineupBtn').classList.remove('active');
+    document.getElementById('subBtn').classList.remove('active');
+
+    saveGameState();
     renderRoster();
   } catch (e) {
     alert('Invalid JSON');
   }
 }
-
 function updateStatusDots() {
   document.getElementById('internetDot').style.background =
     navigator.onLine ? '#b6f7b6' : '#f7b6b6';
@@ -192,6 +219,7 @@ function handlePlayerClick(index) {
       lineupSelections.push(index);
     }
 
+    saveGameState();
     renderRoster();
     return;
   }
@@ -211,6 +239,7 @@ function handlePlayerClick(index) {
       const [a, b] = swapSelections;
       [roster[a], roster[b]] = [roster[b], roster[a]];
       swapSelections = [];
+      saveGameState();
       renderRoster();
     } else {
       renderRoster();
@@ -405,7 +434,14 @@ window.onSpotifyWebPlaybackSDKReady = async () => {
   spotifyPlayer.connect();
 };
 
-renderRoster();
+loadSavedGameState();
+
+if (roster.length === 0) {
+  loadRosterFromJson();
+} else {
+  renderRoster();
+}
+
 </script>
 <script src="https://sdk.scdn.co/spotify-player.js"></script>
 </body>
