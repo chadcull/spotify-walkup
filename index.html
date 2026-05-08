@@ -91,7 +91,7 @@
   <span id="internetDot" class="status-icon">● WiFi</span>
   <span id="spotifyDot" class="status-icon">● Spotify</span>
 
-  <button class="test-btn" onclick="playTestSound()">🔊 Test Sound</button>
+  <button class="test-btn" onclick="playTestSound()">🔊 Test</button>
 </div>
 
 <div style="margin-bottom:12px; display:flex; gap:8px;">
@@ -206,21 +206,58 @@ function playTestSound(){
   });
 }
 
-window.onSpotifyWebPlaybackSDKReady = async ()=>{
-  spotifyPlayer = new Spotify.Player({
-    name:'Walkup',
-    getOAuthToken:cb=>cb(accessToken),
-    volume:1
+  async function handleCallback(){
+  const code = new URLSearchParams(window.location.search).get('code');
+  if(!code) return;
+
+  const verifier = localStorage.getItem('verifier');
+
+  const body = new URLSearchParams({
+    client_id: clientId,
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: redirectUri,
+    code_verifier: verifier
   });
 
-  spotifyPlayer.addListener('ready',({device_id})=>{
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body
+  });
+
+  const data = await res.json();
+
+  if (!data.access_token) {
+    console.error('Spotify token error:', data);
+    alert('Login failed. Check Spotify app settings.');
+    return;
+  }
+
+  accessToken = data.access_token;
+
+  window.history.replaceState({}, document.title, '/spotify-walkup/');
+}
+  
+window.onSpotifyWebPlaybackSDKReady = async () => {
+  await handleCallback();
+
+  spotifyPlayer = new Spotify.Player({
+    name:'Walkup',
+    getOAuthToken: cb => cb(accessToken),
+    volume: 1
+  });
+
+  spotifyPlayer.addListener('ready', ({ device_id }) => {
     deviceId = device_id;
     window.spotifyPlayerReady = true;
+    updateStatusDots();
   });
 
   spotifyPlayer.connect();
 };
 
+  
 renderRoster();
 </script>
 
