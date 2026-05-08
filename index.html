@@ -1,358 +1,962 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Ballpark Music Manager</title>
-
-<style>
-body { font-family: Arial, sans-serif; margin:0; padding:16px; background:#f4f4f4; }
-h1 { text-align:center; }
-
-button {
-  font-size:14px;
-  padding:6px;
-  border:none;
-  border-radius:10px;
-  cursor:pointer;
-}
-
-.controls {
-  position:sticky;
-  top:0;
-  background:white;
-  padding:12px;
-  margin-bottom:12px;
-  border-radius:10px;
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  align-items:center;
-}
-
-.login-btn { background:#1DB954; color:white; width:48%; }
-.fade-btn { background:#f0ad4e; color:white; }
-.stop-btn { background:#d9534f; color:white; }
-.test-btn { background:#9999ee; }
-
-.status-icon {
-  font-size:12px;
-  padding:6px 10px;
-  background:#eee;
-  border-radius:8px;
-}
-
-.tabs {
-  display:flex;
-  gap:8px;
-  margin-bottom:12px;
-}
-
-.tab-btn {
-  flex:1;
-  background:#ddd;
-}
-
-.tab-btn.active {
-  background:#333;
-  color:white;
-}
-
-.section { display:none; }
-.section.active { display:block; }
-
-.player {
-  background:white;
-  padding:12px;
-  margin-bottom:8px;
-  border-radius:10px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.play-btn {
-  background:#28a745;
-  color:white;
-}
-
-textarea {
-  width:100%;
-  min-height:120px;
-  font-family:monospace;
-  margin-bottom:8px;
-}
-
-.hiddenPanel { display:none; }
-
-.card {
-  background:white;
-  padding:10px;
-  margin-bottom:8px;
-  border-radius:10px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-</style>
-</head>
-
-<body>
-
-<h1>⚾ Ballpark Music</h1>
-
-<div class="controls">
-  <button class="login-btn" onclick="loginSpotify()">Login</button>
-  <button class="fade-btn" onclick="fadeOut()">Fade</button>
-  <button class="stop-btn" onclick="stopAll()">Stop</button>
-  <button class="test-btn" onclick="playTestSound()">Test</button>
-
-  <span id="wifi" class="status-icon">WiFi</span>
-  <span id="spotify" class="status-icon">Spotify</span>
-</div>
-
-<div class="tabs">
-  <button class="tab-btn active" onclick="setTab('team')">Our Team</button>
-  <button class="tab-btn" onclick="setTab('opp')">Opponents</button>
-  <button class="tab-btn" onclick="setTab('music')">Extra Music</button>
-</div>
-
-<!-- TEAM -->
-<div id="team" class="section active">
-  <button onclick="togglePanel('teamPanel')">Reset Data</button>
-  <div id="teamPanel" class="hiddenPanel">
-    <textarea id="teamJson"></textarea>
-    <button onclick="loadTeam()">Load Team</button>
-  </div>
-  <div id="teamRoster"></div>
-</div>
-
-<!-- OPPONENTS -->
-<div id="opp" class="section">
-  <button onclick="togglePanel('oppPanel')">Reset Data</button>
-  <div id="oppPanel" class="hiddenPanel">
-    <textarea id="oppJson"></textarea>
-    <button onclick="loadOpp()">Load Opponents</button>
-  </div>
-  <div id="oppRoster"></div>
-</div>
-
-<!-- MUSIC -->
-<div id="music" class="section">
-
-  <h3>Between Innings</h3>
-  <button onclick="playRandomSong()">Play a Song</button>
-
-  <h3>Sound Effects</h3>
-  <div id="clips"></div>
-
-  <textarea id="clipsJson"></textarea>
-  <button onclick="loadClips()">Load Clips</button>
-
-</div>
-
-<script>
-
-let accessToken=null, deviceId=null, spotifyPlayer=null;
-let fadeTimer=null, clipTimer=null;
-
-let ourRoster=[], oppRoster=[], clips=[];
-
-let activeTab='team';
-
-function setTab(t){
-  activeTab=t;
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.getElementById(t).classList.add('active');
-
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  event.target.classList.add('active');
-}
-
-function togglePanel(id){
-  const el=document.getElementById(id);
-  el.style.display = el.style.display==='block'?'none':'block';
-}
-
-/* ---------- PLAYBACK CORE ---------- */
-
-function stopAll(){
-  if(fadeTimer) clearInterval(fadeTimer);
-  if(clipTimer) clearTimeout(clipTimer);
-  if(spotifyPlayer) spotifyPlayer.pause();
-}
-
-function fadeOut(){
-  if(!spotifyPlayer) return;
-  let v=1;
-  if(fadeTimer) clearInterval(fadeTimer);
-
-  fadeTimer=setInterval(()=>{
-    v-=0.05;
-    if(v<=0){
-      stopAll();
-      return;
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ballpark Music Manager</title>
+  <style>
+    :root {
+      --green: #28a745;
+      --spotify: #1DB954;
+      --red: #d9534f;
+      --orange: #f0ad4e;
+      --blue: #007bff;
+      --purple: #9999ee;
+      --bg: #f4f4f4;
+      --card: #ffffff;
+      --muted: #666;
+      --shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    spotifyPlayer.setVolume(v);
-  },100);
-}
 
-/* ---------- BETWEEN INNINGS ---------- */
+    * { box-sizing: border-box; }
 
-function playRandomSong(){
-  stopAll();
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: #222;
+    }
 
-  const songs = JSON.parse(localStorage.getItem('songs')||'[]');
-  if(!songs.length) return;
+    h1 { text-align: center; margin: 0 0 12px; }
+    h2 { margin: 14px 0 10px; }
+    h3 { margin: 12px 0 8px; }
 
-  const song = songs[Math.floor(Math.random()*songs.length)];
+    textarea {
+      width: 100%;
+      min-height: 140px;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+      background: white;
+    }
 
-  spotifyPlayer._options.getOAuthToken(token=>{
-    accessToken=token;
-  });
+    button {
+      font-size: 14px;
+      padding: 8px 10px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: normal;
+    }
 
-  fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,{
-    method:'PUT',
-    headers:{
-      Authorization:`Bearer ${accessToken}`,
-      'Content-Type':'application/json'
-    },
-    body:JSON.stringify({uris:[song.uri]})
-  });
+    button:active { transform: translateY(1px); }
 
-  setTimeout(()=>spotifyPlayer.seek(song.startMs||0),500);
-}
+    .top-controls {
+      position: sticky;
+      top: 0;
+      background: white;
+      padding: 12px;
+      margin-bottom: 12px;
+      border-radius: 10px;
+      z-index: 100;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      box-shadow: var(--shadow);
+    }
 
-/* ---------- CLIPS ---------- */
+    .login-btn { background: var(--spotify); color: white; }
+    .stop-btn { background: var(--red); color: white; }
+    .fade-btn { background: var(--orange); color: white; }
+    .test-btn { background: var(--purple); color: black; }
+    .load-btn { background: var(--red); color: white; }
+    .save-btn { background: var(--blue); color: white; }
+    .play-btn { background: var(--green); color: white; min-width: 96px; }
+    .music-btn { background: var(--spotify); color: white; font-size: 18px; padding: 14px; width: 100%; }
 
-function loadClips(){
-  clips = JSON.parse(document.getElementById('clipsJson').value);
-  renderClips();
-}
+    .status-icon {
+      font-size: 12px;
+      padding: 6px 10px;
+      background: #eee;
+      border-radius: 8px;
+      display: inline-block;
+      text-align: center;
+    }
 
-function renderClips(){
-  const c=document.getElementById('clips');
-  c.innerHTML='';
+    .now-playing {
+      flex: 1 1 100%;
+      color: var(--muted);
+      font-size: 13px;
+      padding-top: 4px;
+    }
 
-  clips.forEach((clip,i)=>{
-    const div=document.createElement('div');
-    div.className='card';
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
 
-    div.innerHTML=`
-      <div>${clip.name}</div>
-      <button>▶</button>
-    `;
+    .tab-btn {
+      background: #e5e5e5;
+      font-weight: bold;
+      padding: 12px 8px;
+    }
 
-    div.querySelector('button').onclick=()=>{
-      playClip(clip);
+    .tab-btn.active {
+      background: #222;
+      color: white;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .panel-card {
+      background: white;
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+    }
+
+    .row-controls {
+      margin-bottom: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .mode-btn.active { outline: 3px solid #333; background: #fff3cd; }
+
+    .reset-panel { display: none; margin-bottom: 12px; }
+    .reset-panel.visible { display: block; }
+
+    .player, .clip-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      padding: 14px;
+      margin-bottom: 10px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      position: relative;
+      gap: 10px;
+    }
+
+    .player.selected-swap { background: #fff3cd !important; border: 3px solid var(--orange); }
+    .player-name, .clip-name { font-size: 18px; font-weight: bold; flex: 1; }
+    .clip-subtitle { display: block; font-size: 12px; font-weight: normal; color: var(--muted); margin-top: 4px; }
+
+    .bench-divider {
+      border-top: 4px solid black;
+      margin: 20px 0 10px;
+      padding-top: 10px;
+      font-weight: bold;
+    }
+
+    .hint {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.35;
+      margin: 6px 0 10px;
+    }
+
+    .empty-state {
+      background: #fff;
+      padding: 14px;
+      border-radius: 12px;
+      color: var(--muted);
+      box-shadow: var(--shadow);
+    }
+
+    @media (max-width: 560px) {
+      body { padding: 10px; }
+      .tabs { grid-template-columns: 1fr; }
+      .top-controls button { flex: 1 1 auto; }
+      .player, .clip-card { padding: 12px; }
+      .player-name, .clip-name { font-size: 16px; }
+      .play-btn { min-width: 82px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>⚾ Ballpark Music Manager</h1>
+
+  <div class="top-controls">
+    <button class="login-btn" onclick="loginSpotify()">Login to Spotify</button>
+    <button class="fade-btn" onclick="fadeOut()">Fade Out</button>
+    <button class="stop-btn" onclick="stopAll()">Stop</button>
+    <span id="internetDot" class="status-icon">● WiFi</span>
+    <span id="spotifyDot" class="status-icon">● Spotify</span>
+    <button class="test-btn" onclick="playTestSound()">🔊 Sound Test</button>
+    <div id="nowPlaying" class="now-playing">Nothing playing.</div>
+  </div>
+
+  <div class="tabs">
+    <button id="tabOur" class="tab-btn active" onclick="showTab('our')">Our Team</button>
+    <button id="tabOpponents" class="tab-btn" onclick="showTab('opponents')">Opponents</button>
+    <button id="tabExtra" class="tab-btn" onclick="showTab('extra')">Extra Music</button>
+  </div>
+
+  <section id="panelOur" class="tab-panel active">
+    <div class="panel-card">
+      <h2>Our Team</h2>
+      <div class="row-controls">
+        <button id="ourResetBtn" class="load-btn" onclick="toggleResetPanel('our')">Reset Our Team Data</button>
+        <button id="ourLineupBtn" class="mode-btn" onclick="toggleLineupMode('our')">Set Lineup Order</button>
+        <button id="ourSubBtn" class="mode-btn" onclick="toggleSubMode('our')">Substitute</button>
+      </div>
+      <div id="ourResetPanel" class="reset-panel">
+        <label><strong>Paste Our Team Player JSON</strong></label>
+        <p class="hint">Format: <code>name</code>, <code>number</code>, <code>uri</code>, <code>startMs</code>. Loading JSON clears lineup/sub state for this team only.</p>
+        <textarea id="ourJsonInput"></textarea>
+        <button class="save-btn" onclick="loadRosterFromJson('our')">Load Our Team JSON</button>
+      </div>
+    </div>
+    <div id="ourPlayers"></div>
+  </section>
+
+  <section id="panelOpponents" class="tab-panel">
+    <div class="panel-card">
+      <h2>Opponents</h2>
+      <div class="row-controls">
+        <button id="opponentsResetBtn" class="load-btn" onclick="toggleResetPanel('opponents')">Reset Opponent Data</button>
+        <button id="opponentsLineupBtn" class="mode-btn" onclick="toggleLineupMode('opponents')">Set Lineup Order</button>
+        <button id="opponentsSubBtn" class="mode-btn" onclick="toggleSubMode('opponents')">Substitute</button>
+      </div>
+      <div id="opponentsResetPanel" class="reset-panel">
+        <label><strong>Paste Opponent Player JSON</strong></label>
+        <p class="hint">Same format as Our Team. Leave this tab alone if you do not have opponent walk-up songs.</p>
+        <textarea id="opponentsJsonInput"></textarea>
+        <button class="save-btn" onclick="loadRosterFromJson('opponents')">Load Opponent JSON</button>
+      </div>
+    </div>
+    <div id="opponentsPlayers"></div>
+  </section>
+
+  <section id="panelExtra" class="tab-panel">
+    <div class="panel-card">
+      <h2>Extra Music</h2>
+      <button class="music-btn" onclick="playPlaylistSong()">▶ Play a Song</button>
+      <p class="hint">
+        Each click starts a new song from the hardcoded Spotify playlist. It starts fresh instead of resuming a previously stopped song.
+        Fade Out or Stop will interrupt it.
+      </p>
+    </div>
+
+    <div class="panel-card">
+      <h3>Ballpark Clips</h3>
+      <div class="row-controls">
+        <button id="clipsResetBtn" class="load-btn" onclick="toggleClipsResetPanel()">Reset Clip Data</button>
+      </div>
+      <div id="clipsResetPanel" class="reset-panel">
+        <label><strong>Paste Clip JSON</strong></label>
+        <p class="hint">Format: <code>name</code>, <code>uri</code>, <code>startMs</code>, <code>endMs</code>. Clips display in JSON order and automatically fade out at <code>endMs</code>.</p>
+        <textarea id="clipsJsonInput"></textarea>
+        <button class="save-btn" onclick="loadClipsFromJson()">Load Clip JSON</button>
+      </div>
+    </div>
+
+    <div id="clipsList"></div>
+  </section>
+
+  <script>
+    let spotifyPlayer, deviceId, accessToken = null;
+    let fadeTimer = null;
+    let clipEndTimer = null;
+    let activePlayback = { kind: null };
+
+    const clientId = 'cfcbe7373fe441de9787e80668277b0e';
+    const redirectUri = 'https://chadcull.github.io/spotify-walkup/callback';
+
+    // Your hardcoded ballpark playlist.
+    const playlistUri = 'spotify:playlist:779KcPDKB2wIrBD6lnQgXZ';
+
+    // You said the playlist has about 100 songs. This is used to pick a fresh random offset.
+    // If you later know the exact count has changed, update this number.
+    const playlistTrackCount = 3;
+
+    const clipFadeMs = 2000;
+
+    window.spotifyPlayerReady = false;
+
+    const defaultOurRoster = [
+      {"name":"Brad","number":30,"uri":"spotify:track:1GzNGrxi4NIOKu0Z4npUss","startMs":0},
+      {"name":"Carter","number":21,"uri":"spotify:track:1dGg92GTw7PeonUfyPmpCp","startMs":106000},
+      {"name":"Chase","number":17,"uri":"spotify:track:1pr9TZGOXeJUggIal1Wq3R","startMs":0},
+      {"name":"Evan","number":27,"uri":"spotify:track:2QpGZOhTCHHiKmpSO9FW4h","startMs":0},
+      {"name":"Jake","number":12,"uri":"spotify:track:52KvuGmgcgRdrLMXOtda0E","startMs":5000},
+      {"name":"Joey","number":22,"uri":"spotify:track:2DmZ7aPhT5jkqLIYxTpQlJ","startMs":0},
+      {"name":"Josh","number":34,"uri":"spotify:track:1udOZftd1UOs5WTDPrG97k","startMs":0},
+      {"name":"Kyle","number":15,"uri":"spotify:track:7vrLphPq4yjaX7jiDdd2Nc","startMs":0},
+      {"name":"Lucas","number":3,"uri":"spotify:track:1158ckiB5S4cpsdYHDB9IF","startMs":0},
+      {"name":"Matteo","number":4,"uri":"spotify:track:1D70EbZoedMGzZWYZvfQIY","startMs":0},
+      {"name":"Milan","number":44,"uri":"spotify:track:7y9yjpRtZajYzVpXHRjwGz","startMs":0},
+      {"name":"Nick","number":11,"uri":"spotify:track:1vO7XJH8q1LBzobiVwZ2qU","startMs":0},
+      {"name":"Paul","number":47,"uri":"spotify:track:5NGDrUGW3ZGnxH3zIJquHM","startMs":0},
+      {"name":"Wade","number":9,"uri":"spotify:track:5VGAlq9o0u09jZavGLUfdo","startMs":0}
+    ];
+
+    const defaultOpponentRoster = [
+      {"name":"Opponent 1","number":1,"uri":"spotify:track:1GzNGrxi4NIOKu0Z4npUss","startMs":0},
+      {"name":"Opponent 2","number":2,"uri":"spotify:track:1dGg92GTw7PeonUfyPmpCp","startMs":30000}
+    ];
+
+    const defaultClips = [
+      {"name":"Charge","uri":"spotify:track:1GzNGrxi4NIOKu0Z4npUss","startMs":0,"endMs":8000},
+      {"name":"Home Run","uri":"spotify:track:1dGg92GTw7PeonUfyPmpCp","startMs":30000,"endMs":42000},
+      {"name":"Rally","uri":"spotify:track:1pr9TZGOXeJUggIal1Wq3R","startMs":45000,"endMs":60000}
+    ];
+
+    const teams = {
+      our: {
+        label: 'Our Team',
+        roster: [],
+        lineupSelections: [],
+        swapSelections: [],
+        currentBatterIndex: null,
+        lineupMode: false,
+        subMode: false,
+        storageRoster: 'bbmm_our_roster',
+        storageLineup: 'bbmm_our_lineup',
+        defaultRoster: defaultOurRoster
+      },
+      opponents: {
+        label: 'Opponents',
+        roster: [],
+        lineupSelections: [],
+        swapSelections: [],
+        currentBatterIndex: null,
+        lineupMode: false,
+        subMode: false,
+        storageRoster: 'bbmm_opponents_roster',
+        storageLineup: 'bbmm_opponents_lineup',
+        defaultRoster: defaultOpponentRoster
+      }
     };
 
-    c.appendChild(div);
-  });
-}
+    let clips = [];
+    let activeTab = 'our';
 
-function playClip(clip){
-  stopAll();
+    function $(id) {
+      return document.getElementById(id);
+    }
 
-  fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,{
-    method:'PUT',
-    headers:{
-      Authorization:`Bearer ${accessToken}`,
-      'Content-Type':'application/json'
-    },
-    body:JSON.stringify({uris:[clip.uri]})
-  });
+    function setNowPlaying(text) {
+      $('nowPlaying').innerText = text || 'Nothing playing.';
+    }
 
-  setTimeout(()=>{
-    spotifyPlayer.seek(clip.startMs||0);
+    function saveTeamState(teamKey) {
+      const team = teams[teamKey];
+      localStorage.setItem(team.storageRoster, JSON.stringify(team.roster));
+      localStorage.setItem(team.storageLineup, JSON.stringify(team.lineupSelections));
+    }
 
-    const duration = (clip.endMs - clip.startMs) - 2000;
+    function loadTeamState(teamKey) {
+      const team = teams[teamKey];
+      const savedRoster = localStorage.getItem(team.storageRoster);
+      const savedLineup = localStorage.getItem(team.storageLineup);
 
-    clipTimer=setTimeout(()=>{
-      fadeOut();
-    }, duration);
+      team.roster = savedRoster ? JSON.parse(savedRoster) : [...team.defaultRoster];
+      team.lineupSelections = savedLineup ? JSON.parse(savedLineup) : [];
+    }
 
-  },500);
-}
+    function saveClips() {
+      localStorage.setItem('bbmm_clips', JSON.stringify(clips));
+    }
 
-/* ---------- TEAM / OPPONENTS ---------- */
+    function loadClips() {
+      const savedClips = localStorage.getItem('bbmm_clips');
+      clips = savedClips ? JSON.parse(savedClips) : [...defaultClips];
+    }
 
-function renderRoster(roster, container){
-  const c=document.getElementById(container);
-  c.innerHTML='';
+    function hydrateTextAreas() {
+      $('ourJsonInput').value = JSON.stringify(teams.our.roster, null, 2);
+      $('opponentsJsonInput').value = JSON.stringify(teams.opponents.roster, null, 2);
+      $('clipsJsonInput').value = JSON.stringify(clips, null, 2);
+    }
 
-  roster.forEach((p,i)=>{
-    const div=document.createElement('div');
-    div.className='player';
+    function showTab(tabKey) {
+      activeTab = tabKey;
 
-    div.innerHTML=`
-      <div>${p.name} (#${p.number})</div>
-      <button class="play-btn">Play</button>
-    `;
+      ['our', 'opponents', 'extra'].forEach(key => {
+        $('tab' + capitalize(key)).classList.toggle('active', key === tabKey);
+        $('panel' + capitalize(key)).classList.toggle('active', key === tabKey);
+      });
+    }
 
-    div.querySelector('button').onclick=()=>{
-      playSong(p);
+    function capitalize(value) {
+      return value.charAt(0).toUpperCase() + value.slice(1);
+    }
+
+    function toggleResetPanel(teamKey) {
+      $(teamKey + 'ResetPanel').classList.toggle('visible');
+    }
+
+    function toggleClipsResetPanel() {
+      $('clipsResetPanel').classList.toggle('visible');
+    }
+
+    function loadRosterFromJson(teamKey) {
+      const team = teams[teamKey];
+
+      try {
+        const parsed = JSON.parse($(teamKey + 'JsonInput').value);
+        validateRoster(parsed);
+
+        team.roster = parsed;
+        team.lineupSelections = [];
+        team.swapSelections = [];
+        team.currentBatterIndex = null;
+        team.lineupMode = false;
+        team.subMode = false;
+
+        $(teamKey + 'LineupBtn').classList.remove('active');
+        $(teamKey + 'SubBtn').classList.remove('active');
+
+        saveTeamState(teamKey);
+        renderRoster(teamKey);
+        setNowPlaying(team.label + ' data loaded.');
+      } catch (e) {
+        console.error(e);
+        alert('Invalid ' + team.label + ' JSON: ' + e.message);
+      }
+    }
+
+    function validateRoster(roster) {
+      if (!Array.isArray(roster)) throw new Error('Roster must be an array.');
+
+      roster.forEach((player, index) => {
+        if (!player.name) throw new Error('Player #' + (index + 1) + ' is missing name.');
+        if (player.number === undefined) throw new Error(player.name + ' is missing number.');
+        if (!player.uri) throw new Error(player.name + ' is missing uri.');
+        if (player.startMs === undefined) throw new Error(player.name + ' is missing startMs.');
+      });
+    }
+
+    function loadClipsFromJson() {
+      try {
+        const parsed = JSON.parse($('clipsJsonInput').value);
+        validateClips(parsed);
+        clips = parsed;
+        saveClips();
+        renderClips();
+        setNowPlaying('Clip data loaded.');
+      } catch (e) {
+        console.error(e);
+        alert('Invalid Clip JSON: ' + e.message);
+      }
+    }
+
+    function validateClips(list) {
+      if (!Array.isArray(list)) throw new Error('Clips must be an array.');
+
+      list.forEach((clip, index) => {
+        if (!clip.name) throw new Error('Clip #' + (index + 1) + ' is missing name.');
+        if (!clip.uri) throw new Error(clip.name + ' is missing uri.');
+        if (clip.startMs === undefined) throw new Error(clip.name + ' is missing startMs.');
+        if (clip.endMs === undefined) throw new Error(clip.name + ' is missing endMs.');
+        if (Number(clip.endMs) <= Number(clip.startMs)) throw new Error(clip.name + ' endMs must be after startMs.');
+      });
+    }
+
+    function renderRoster(teamKey) {
+      const team = teams[teamKey];
+      const container = $(teamKey + 'Players');
+      container.innerHTML = '';
+
+      if (!team.roster.length) {
+        container.innerHTML = '<div class="empty-state">No players loaded.</div>';
+        return;
+      }
+
+      const starters = team.lineupSelections.map(index => team.roster[index]).filter(Boolean);
+      const bench = team.roster.filter((_, i) => !team.lineupSelections.includes(i));
+      const orderedRoster = team.lineupSelections.length ? [...starters, ...bench] : team.roster;
+
+      orderedRoster.forEach((player, displayIndex) => {
+        const originalIndex = team.roster.indexOf(player);
+        const div = document.createElement('div');
+        div.className = 'player';
+
+        if (team.subMode && team.swapSelections.includes(originalIndex)) {
+          div.classList.add('selected-swap');
+        }
+
+        const icon = team.currentBatterIndex === originalIndex
+          ? '<img src="images/bat.png" alt="bat" style="width:26px;height:auto;vertical-align:middle;">'
+          : '⚾';
+
+        div.innerHTML = `
+          <div class="player-name">${icon} ${displayIndex + 1}. ${escapeHtml(player.name)} (#${escapeHtml(String(player.number))})</div>
+          <button class="play-btn">▶ Play</button>
+        `;
+
+        div.addEventListener('click', () => handlePlayerClick(teamKey, originalIndex));
+
+        div.querySelector('.play-btn').addEventListener('click', event => {
+          event.stopPropagation();
+          playBatter(teamKey, originalIndex);
+        });
+
+        container.appendChild(div);
+
+        if (team.lineupSelections.length && displayIndex === team.lineupSelections.length - 1 && bench.length) {
+          const divider = document.createElement('div');
+          divider.className = 'bench-divider';
+          divider.innerText = 'On the Bench';
+          container.appendChild(divider);
+        }
+      });
+    }
+
+    function renderAllRosters() {
+      renderRoster('our');
+      renderRoster('opponents');
+    }
+
+    function handlePlayerClick(teamKey, index) {
+      const team = teams[teamKey];
+
+      if (team.lineupMode) {
+        const existing = team.lineupSelections.indexOf(index);
+
+        if (existing >= 0) {
+          team.lineupSelections.splice(existing, 1);
+        } else {
+          team.lineupSelections.push(index);
+        }
+
+        saveTeamState(teamKey);
+        renderRoster(teamKey);
+        return;
+      }
+
+      if (team.subMode) {
+        const existing = team.swapSelections.indexOf(index);
+
+        if (existing >= 0) {
+          team.swapSelections.splice(existing, 1);
+          renderRoster(teamKey);
+          return;
+        }
+
+        team.swapSelections.push(index);
+
+        if (team.swapSelections.length === 2) {
+          const [a, b] = team.swapSelections;
+          [team.roster[a], team.roster[b]] = [team.roster[b], team.roster[a]];
+          team.swapSelections = [];
+          saveTeamState(teamKey);
+          hydrateTextAreas();
+          renderRoster(teamKey);
+        } else {
+          renderRoster(teamKey);
+        }
+      }
+    }
+
+    function toggleLineupMode(teamKey) {
+      const team = teams[teamKey];
+      team.lineupMode = !team.lineupMode;
+      team.subMode = false;
+      team.swapSelections = [];
+
+      $(teamKey + 'LineupBtn').classList.toggle('active', team.lineupMode);
+      $(teamKey + 'SubBtn').classList.remove('active');
+
+      renderRoster(teamKey);
+    }
+
+    function toggleSubMode(teamKey) {
+      const team = teams[teamKey];
+      team.subMode = !team.subMode;
+      team.lineupMode = false;
+
+      if (!team.subMode) team.swapSelections = [];
+
+      $(teamKey + 'SubBtn').classList.toggle('active', team.subMode);
+      $(teamKey + 'LineupBtn').classList.remove('active');
+
+      renderRoster(teamKey);
+    }
+
+    async function ensureSpotifyReady() {
+      if (!accessToken || !window.spotifyPlayerReady || !deviceId) {
+        alert('Spotify not ready. Login first, then make sure this browser is the active Spotify device.');
+        return false;
+      }
+
+      return true;
+    }
+
+    function clearPlaybackTimers() {
+      if (fadeTimer) clearInterval(fadeTimer);
+      if (clipEndTimer) clearTimeout(clipEndTimer);
+      fadeTimer = null;
+      clipEndTimer = null;
+    }
+
+    function resetCurrentBatterMarkers() {
+      teams.our.currentBatterIndex = null;
+      teams.opponents.currentBatterIndex = null;
+      renderAllRosters();
+    }
+
+    async function playBatter(teamKey, index) {
+      const team = teams[teamKey];
+      const player = team.roster[index];
+      if (!player) return;
+      if (!(await ensureSpotifyReady())) return;
+
+      clearPlaybackTimers();
+      resetCurrentBatterMarkers();
+      team.currentBatterIndex = index;
+      renderRoster(teamKey);
+
+      activePlayback = { kind: 'batter', teamKey, index };
+      setNowPlaying('Walk-up: ' + team.label + ' - ' + player.name);
+
+      await startTrack(player.uri, Number(player.startMs || 0));
+    }
+
+    async function playPlaylistSong() {
+      if (!(await ensureSpotifyReady())) return;
+
+      clearPlaybackTimers();
+      resetCurrentBatterMarkers();
+
+      const randomPosition = Math.floor(Math.random() * playlistTrackCount);
+      activePlayback = { kind: 'playlistSong', firstTrackId: null };
+      setNowPlaying('Playing a fresh ballpark song.');
+
+      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          context_uri: playlistUri,
+          offset: { position: randomPosition },
+          position_ms: 0
+        })
+      });
+
+      setTimeout(async () => {
+        const state = await spotifyPlayer.getCurrentState();
+        if (state && state.track_window && state.track_window.current_track) {
+          activePlayback.firstTrackId = state.track_window.current_track.id;
+          setNowPlaying('Ballpark song: ' + state.track_window.current_track.name);
+        }
+        spotifyPlayer.setVolume(1);
+      }, 700);
+    }
+
+    function renderClips() {
+      const container = $('clipsList');
+      container.innerHTML = '';
+
+      if (!clips.length) {
+        container.innerHTML = '<div class="empty-state">No clips loaded.</div>';
+        return;
+      }
+
+      clips.forEach((clip, index) => {
+        const div = document.createElement('div');
+        div.className = 'clip-card';
+        div.innerHTML = `
+          <div class="clip-name">
+            🎺 ${escapeHtml(clip.name)}
+            <span class="clip-subtitle">${formatMs(clip.startMs)} to ${formatMs(clip.endMs)}</span>
+          </div>
+          <button class="play-btn">▶ Play</button>
+        `;
+
+        div.querySelector('.play-btn').addEventListener('click', event => {
+          event.stopPropagation();
+          playClip(index);
+        });
+
+        div.addEventListener('click', () => playClip(index));
+        container.appendChild(div);
+      });
+    }
+
+    async function playClip(index) {
+      const clip = clips[index];
+      if (!clip) return;
+      if (!(await ensureSpotifyReady())) return;
+
+      clearPlaybackTimers();
+      resetCurrentBatterMarkers();
+
+      const startMs = Number(clip.startMs || 0);
+      const endMs = Number(clip.endMs || 0);
+      const durationUntilFade = Math.max(0, endMs - startMs - clipFadeMs);
+
+      activePlayback = { kind: 'clip', index };
+      setNowPlaying('Clip: ' + clip.name);
+
+      await startTrack(clip.uri, startMs);
+
+      clipEndTimer = setTimeout(() => {
+        if (activePlayback.kind === 'clip' && activePlayback.index === index) {
+          fadeOut(clipFadeMs);
+        }
+      }, durationUntilFade);
+    }
+
+    async function startTrack(uri, startMs) {
+      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ uris: [uri] })
+      });
+
+      setTimeout(async () => {
+        try {
+          await spotifyPlayer.seek(startMs);
+          await spotifyPlayer.setVolume(1);
+        } catch (e) {
+          console.error('Seek/volume failed', e);
+        }
+      }, 600);
+    }
+
+    async function stopAll() {
+      clearPlaybackTimers();
+      activePlayback = { kind: null };
+      resetCurrentBatterMarkers();
+      setNowPlaying('Stopped.');
+
+      if (spotifyPlayer) {
+        try { await spotifyPlayer.pause(); } catch (e) { console.error(e); }
+      }
+    }
+
+    function fadeOut(durationMs = 2000) {
+      if (!spotifyPlayer) return;
+
+      if (fadeTimer) clearInterval(fadeTimer);
+      if (clipEndTimer) clearTimeout(clipEndTimer);
+      clipEndTimer = null;
+
+      const steps = 20;
+      const intervalMs = Math.max(50, Math.floor(durationMs / steps));
+      let step = 0;
+
+      spotifyPlayer.getVolume().then(startVolume => {
+        fadeTimer = setInterval(async () => {
+          step++;
+          const nextVolume = Math.max(0, startVolume * (1 - step / steps));
+
+          try { await spotifyPlayer.setVolume(nextVolume); } catch (e) { console.error(e); }
+
+          if (step >= steps) {
+            clearInterval(fadeTimer);
+            fadeTimer = null;
+
+            try {
+              await spotifyPlayer.setVolume(0);
+              await spotifyPlayer.pause();
+              await spotifyPlayer.setVolume(1);
+            } catch (e) {
+              console.error(e);
+            }
+
+            activePlayback = { kind: null };
+            resetCurrentBatterMarkers();
+            setNowPlaying('Faded out.');
+          }
+        }, intervalMs);
+      });
+    }
+
+    function playTestSound() {
+      const audio = new Audio('assets/test.mp3');
+      audio.volume = 1;
+
+      audio.play().catch(err => {
+        alert('Tap screen once, then try again');
+        console.error(err);
+      });
+    }
+
+    function updateStatusDots() {
+      $('internetDot').style.background = navigator.onLine ? '#b6f7b6' : '#f7b6b6';
+      $('spotifyDot').style.background = window.spotifyPlayerReady ? '#b6f7b6' : '#f7b6b6';
+    }
+
+    setInterval(updateStatusDots, 2000);
+
+    async function loginSpotify() {
+      const verifier = generateRandomString(128);
+      const challenge = await generateCodeChallenge(verifier);
+
+      localStorage.setItem('verifier', verifier);
+
+      const params = new URLSearchParams({
+        client_id: clientId,
+        response_type: 'code',
+        redirect_uri: redirectUri,
+        scope: [
+          'streaming',
+          'user-read-email',
+          'user-read-private',
+          'user-modify-playback-state',
+          'user-read-playback-state'
+        ].join(' '),
+        code_challenge_method: 'S256',
+        code_challenge: challenge
+      });
+
+      window.location = `https://accounts.spotify.com/authorize?${params.toString()}`;
+    }
+
+    function generateRandomString(length) {
+      const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let text = '';
+
+      for (let i = 0; i < length; i++) {
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+      }
+
+      return text;
+    }
+
+    async function generateCodeChallenge(codeVerifier) {
+      const data = new TextEncoder().encode(codeVerifier);
+      const digest = await window.crypto.subtle.digest('SHA-256', data);
+
+      return btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    }
+
+    async function handleCallback() {
+      const code = new URLSearchParams(window.location.search).get('code');
+      if (!code) return;
+
+      const verifier = localStorage.getItem('verifier');
+
+      const body = new URLSearchParams({
+        client_id: clientId,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+        code_verifier: verifier
+      });
+
+      const res = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body
+      });
+
+      const data = await res.json();
+
+      if (!data.access_token) {
+        console.error(data);
+        alert('Spotify login failed');
+        return;
+      }
+
+      accessToken = data.access_token;
+      window.history.replaceState({}, document.title, '/spotify-walkup/');
+    }
+
+    window.onSpotifyWebPlaybackSDKReady = async () => {
+      await handleCallback();
+
+      spotifyPlayer = new Spotify.Player({
+        name: 'Ballpark Music Manager',
+        getOAuthToken: cb => cb(accessToken),
+        volume: 1
+      });
+
+      spotifyPlayer.addListener('ready', ({ device_id }) => {
+        deviceId = device_id;
+        window.spotifyPlayerReady = true;
+        updateStatusDots();
+        setNowPlaying('Spotify ready.');
+      });
+
+      spotifyPlayer.addListener('not_ready', () => {
+        window.spotifyPlayerReady = false;
+        updateStatusDots();
+      });
+
+      spotifyPlayer.addListener('initialization_error', ({ message }) => console.error(message));
+      spotifyPlayer.addListener('authentication_error', ({ message }) => console.error(message));
+      spotifyPlayer.addListener('account_error', ({ message }) => {
+        console.error(message);
+        alert('Spotify Premium is required for Web Playback.');
+      });
+      spotifyPlayer.addListener('playback_error', ({ message }) => console.error(message));
+
+      spotifyPlayer.addListener('player_state_changed', state => {
+        if (!state || !state.track_window || !state.track_window.current_track) return;
+
+        const track = state.track_window.current_track;
+
+        // Play a Song should not resume partway through a previously stopped song,
+        // and it should not keep rolling through the playlist after the selected song ends.
+        if (activePlayback.kind === 'playlistSong') {
+          if (!activePlayback.firstTrackId) {
+            activePlayback.firstTrackId = track.id;
+            setNowPlaying('Ballpark song: ' + track.name);
+            return;
+          }
+
+          if (track.id !== activePlayback.firstTrackId) {
+            stopAll();
+          }
+        }
+      });
+
+      spotifyPlayer.connect();
     };
 
-    c.appendChild(div);
-  });
-}
+    function formatMs(ms) {
+      const totalSeconds = Math.floor(Number(ms || 0) / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return minutes + ':' + String(seconds).padStart(2, '0');
+    }
 
-function playSong(p){
-  stopAll();
+    function escapeHtml(value) {
+      return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
 
-  fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,{
-    method:'PUT',
-    headers:{
-      Authorization:`Bearer ${accessToken}`,
-      'Content-Type':'application/json'
-    },
-    body:JSON.stringify({uris:[p.uri]})
-  });
+    function init() {
+      loadTeamState('our');
+      loadTeamState('opponents');
+      loadClips();
+      hydrateTextAreas();
+      renderAllRosters();
+      renderClips();
+      updateStatusDots();
+    }
 
-  setTimeout(()=>spotifyPlayer.seek(p.startMs||0),500);
-}
-
-/* ---------- LOADERS ---------- */
-
-function loadTeam(){
-  ourRoster=JSON.parse(document.getElementById('teamJson').value);
-  localStorage.setItem('team',JSON.stringify(ourRoster));
-  renderRoster(ourRoster,'teamRoster');
-}
-
-function loadOpp(){
-  oppRoster=JSON.parse(document.getElementById('oppJson').value);
-  localStorage.setItem('opp',JSON.stringify(oppRoster));
-  renderRoster(oppRoster,'oppRoster');
-}
-
-function loadSaved(){
-  ourRoster=JSON.parse(localStorage.getItem('team')||'[]');
-  oppRoster=JSON.parse(localStorage.getItem('opp')||'[]');
-}
-
-/* ---------- INIT ---------- */
-
-loadSaved();
-
-/* Spotify init placeholder */
-window.onSpotifyWebPlaybackSDKReady=()=>{
-  spotifyPlayer=new Spotify.Player({
-    name:'Ballpark',
-    getOAuthToken:cb=>cb(accessToken),
-    volume:1
-  });
-
-  spotifyPlayer.addListener('ready',({device_id})=>{
-    deviceId=device_id;
-  });
-
-  spotifyPlayer.connect();
-};
-
-</script>
-
-<script src="https://sdk.scdn.co/spotify-player.js"></script>
+    init();
+  </script>
+  <script src="https://sdk.scdn.co/spotify-player.js"></script>
 </body>
 </html>
