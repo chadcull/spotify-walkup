@@ -115,6 +115,52 @@ window.spotifyPlayerReady = false;
 
 let roster = [];
 
+
+  async function loginSpotify() {
+  const verifier = generateRandomString(128);
+  const challenge = await generateCodeChallenge(verifier);
+
+  localStorage.setItem('verifier', verifier);
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: 'code',
+    redirect_uri: redirectUri,
+    scope: [
+      'streaming',
+      'user-read-email',
+      'user-read-private',
+      'user-modify-playback-state',
+      'user-read-playback-state'
+    ].join(' '),
+    code_challenge_method: 'S256',
+    code_challenge: challenge
+  });
+
+  window.location = `https://accounts.spotify.com/authorize?${params.toString()}`;
+}
+
+function generateRandomString(length) {
+  const possible =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+  let text = '';
+  for (let i = 0; i < length; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
+}
+
+async function generateCodeChallenge(codeVerifier) {
+  const data = new TextEncoder().encode(codeVerifier);
+  const digest = await window.crypto.subtle.digest('SHA-256', data);
+
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
 function loadRosterFromJson(){
   try {
     roster = JSON.parse(document.getElementById('jsonInput').value);
