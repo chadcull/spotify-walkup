@@ -281,7 +281,7 @@
 
     // You said the playlist has about 100 songs. This is used to pick a fresh random offset.
     // If you later know the exact count has changed, update this number.
-    const playlistTrackCount = 3;
+    const playlistTrackCount = 100;
 
     const clipFadeMs = 2000;
 
@@ -610,6 +610,10 @@
       renderAllRosters();
     }
 
+    function refreshCurrentBatterMarkers() {
+      renderAllRosters();
+    }
+
     async function playBatter(teamKey, index) {
       const team = teams[teamKey];
       const player = team.roster[index];
@@ -737,7 +741,7 @@
     async function stopAll() {
       clearPlaybackTimers();
       activePlayback = { kind: null };
-      resetCurrentBatterMarkers();
+      refreshCurrentBatterMarkers();
       setNowPlaying('Stopped.');
 
       if (spotifyPlayer) {
@@ -776,7 +780,7 @@
             }
 
             activePlayback = { kind: null };
-            resetCurrentBatterMarkers();
+            refreshCurrentBatterMarkers();
             setNowPlaying('Faded out.');
           }
         }, intervalMs);
