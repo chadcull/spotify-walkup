@@ -214,7 +214,7 @@
       .login-section .login-btn { width: 100%; }
       .tabs { flex-wrap: nowrap; overflow-x: auto; }
       .tabs .tab-btn { flex: 1 0 auto; }
-      .team-action-card { top: 125px; }
+      .team-action-card { top: 112px; }
       .player, .clip-card { padding: 6px; }
       .player-name, .clip-name { font-size: 16px; }
       .play-btn { min-width: 82px; }
@@ -251,9 +251,9 @@
   <section id="panelOur" class="tab-panel active">
     <div class="panel-card team-action-card">
       <div class="row-controls">
-        <button id="ourResetBtn" class="load-btn" onclick="toggleResetPanel('our')">Reset Data</button>
         <button id="ourLineupBtn" class="mode-btn" onclick="toggleLineupMode('our')">Set Lineup Order</button>
         <button id="ourSubBtn" class="mode-btn" onclick="toggleSubMode('our')">Substitute</button>
+        <button id="ourResetBtn" class="load-btn" onclick="toggleResetPanel('our')">Reset Data</button>
       </div>
       <div id="ourResetPanel" class="reset-panel">
         <label><strong>Paste Our Team Player JSON</strong></label>
@@ -268,9 +268,9 @@
   <section id="panelOpponents" class="tab-panel">
     <div class="panel-card team-action-card">
       <div class="row-controls">
-        <button id="opponentsResetBtn" class="load-btn" onclick="toggleResetPanel('opponents')">Reset Data</button>
         <button id="opponentsLineupBtn" class="mode-btn" onclick="toggleLineupMode('opponents')">Set Lineup Order</button>
         <button id="opponentsSubBtn" class="mode-btn" onclick="toggleSubMode('opponents')">Substitute</button>
+        <button id="opponentsResetBtn" class="load-btn" onclick="toggleResetPanel('opponents')">Reset Data</button>
       </div>
       <div id="opponentsResetPanel" class="reset-panel">
         <label><strong>Paste Opponent Player JSON</strong></label>
