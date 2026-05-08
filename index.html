@@ -55,7 +55,15 @@
 
     button:active { transform: translateY(1px); }
 
-    .top-controls {
+    .login-section {
+      background: white;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+    }
+
+    .sticky-game-controls {
       position: sticky;
       top: 0;
       background: white;
@@ -63,11 +71,19 @@
       margin-bottom: 12px;
       border-radius: 10px;
       z-index: 100;
+      box-shadow: var(--shadow);
+    }
+
+    .control-row {
       display: flex;
       gap: 8px;
       align-items: center;
       flex-wrap: wrap;
-      box-shadow: var(--shadow);
+      margin-bottom: 8px;
+    }
+
+    .control-row:last-child {
+      margin-bottom: 0;
     }
 
     .login-btn { background: var(--spotify); color: white; }
@@ -89,23 +105,30 @@
     }
 
     .now-playing {
-      flex: 1 1 100%;
+      width: 100%;
       color: var(--muted);
       font-size: 13px;
-      padding-top: 4px;
+      padding: 8px 10px;
+      background: #f7f7f7;
+      border-radius: 8px;
     }
 
     .tabs {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      display: flex;
       gap: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 0;
+      flex-wrap: wrap;
+    }
+
+    .tabs .tab-btn {
+      flex: 1 1 0;
     }
 
     .tab-btn {
       background: #e5e5e5;
       font-weight: bold;
       padding: 12px 8px;
+      white-space: nowrap;
     }
 
     .tab-btn.active {
@@ -179,7 +202,10 @@
     @media (max-width: 560px) {
       body { padding: 10px; }
       .tabs { grid-template-columns: 1fr; }
-      .top-controls button { flex: 1 1 auto; }
+      .control-row button { flex: 1 1 auto; }
+      .login-section .login-btn { width: 100%; }
+      .tabs { flex-wrap: nowrap; overflow-x: auto; }
+      .tabs .tab-btn { flex: 1 0 auto; }
       .player, .clip-card { padding: 12px; }
       .player-name, .clip-name { font-size: 16px; }
       .play-btn { min-width: 82px; }
@@ -189,27 +215,35 @@
 <body>
   <h1>⚾ Ballpark Music Manager</h1>
 
-  <div class="top-controls">
+  <div class="login-section">
     <button class="login-btn" onclick="loginSpotify()">Login to Spotify</button>
-    <button class="fade-btn" onclick="fadeOut()">Fade Out</button>
-    <button class="stop-btn" onclick="stopAll()">Stop</button>
-    <span id="internetDot" class="status-icon">● WiFi</span>
-    <span id="spotifyDot" class="status-icon">● Spotify</span>
-    <button class="test-btn" onclick="playTestSound()">🔊 Sound Test</button>
-    <div id="nowPlaying" class="now-playing">Nothing playing.</div>
   </div>
 
-  <div class="tabs">
-    <button id="tabOur" class="tab-btn active" onclick="showTab('our')">Our Team</button>
-    <button id="tabOpponents" class="tab-btn" onclick="showTab('opponents')">Opponents</button>
-    <button id="tabExtra" class="tab-btn" onclick="showTab('extra')">Extra Music</button>
+  <div class="sticky-game-controls">
+    <div class="control-row">
+      <button class="fade-btn" onclick="fadeOut()">Fade Out</button>
+      <button class="stop-btn" onclick="stopAll()">Stop</button>
+      <span id="internetDot" class="status-icon">● WiFi</span>
+      <span id="spotifyDot" class="status-icon">● Spotify</span>
+      <button class="test-btn" onclick="playTestSound()">🔊 Sound Test</button>
+    </div>
+
+    <div class="control-row">
+      <div id="nowPlaying" class="now-playing">Nothing playing.</div>
+    </div>
+
+    <div class="tabs">
+      <button id="tabOur" class="tab-btn active" onclick="showTab('our')">Our Team</button>
+      <button id="tabOpponents" class="tab-btn" onclick="showTab('opponents')">Opposition</button>
+      <button id="tabExtra" class="tab-btn" onclick="showTab('extra')">Extra Music</button>
+    </div>
   </div>
 
   <section id="panelOur" class="tab-panel active">
     <div class="panel-card">
       <h2>Our Team</h2>
       <div class="row-controls">
-        <button id="ourResetBtn" class="load-btn" onclick="toggleResetPanel('our')">Reset Our Team Data</button>
+        <button id="ourResetBtn" class="load-btn" onclick="toggleResetPanel('our')">Reset Data</button>
         <button id="ourLineupBtn" class="mode-btn" onclick="toggleLineupMode('our')">Set Lineup Order</button>
         <button id="ourSubBtn" class="mode-btn" onclick="toggleSubMode('our')">Substitute</button>
       </div>
@@ -225,9 +259,9 @@
 
   <section id="panelOpponents" class="tab-panel">
     <div class="panel-card">
-      <h2>Opponents</h2>
+      <h2>Opposition</h2>
       <div class="row-controls">
-        <button id="opponentsResetBtn" class="load-btn" onclick="toggleResetPanel('opponents')">Reset Opponent Data</button>
+        <button id="opponentsResetBtn" class="load-btn" onclick="toggleResetPanel('opponents')">Reset Data</button>
         <button id="opponentsLineupBtn" class="mode-btn" onclick="toggleLineupMode('opponents')">Set Lineup Order</button>
         <button id="opponentsSubBtn" class="mode-btn" onclick="toggleSubMode('opponents')">Substitute</button>
       </div>
