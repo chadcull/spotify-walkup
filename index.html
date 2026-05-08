@@ -5,128 +5,156 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Walk-Up Music</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 16px;
-      background: #f4f4f4;
-    }
-
+    body { font-family: Arial, sans-serif; margin: 0; padding: 16px; background: #f4f4f4; }
     h1 { text-align: center; }
 
+    textarea {
+      width: 100%; min-height: 140px; font-family: monospace; font-size: 14px;
+      padding: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 10px;
+    }
+
     .controls {
-      position: sticky;
-      top: 0;
-      background: white;
-      padding: 12px;
-      margin-bottom: 12px;
-      border-radius: 10px;
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
+      position: sticky; top: 0; background: white; padding: 12px;
+      margin-bottom: 12px; border-radius: 10px; z-index: 100;
+      display:flex; gap:8px; align-items:center; flex-wrap:wrap;
     }
 
     button {
-      font-size: 16px;
-      padding: 10px 12px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
+      font-size: 16px; padding: 12px; border: none; border-radius: 10px; cursor: pointer;
     }
 
-    .fade-btn { background:#ffb84d; }
-    .stop-btn { background:#d9534f; color:white; }
-    .test-btn { background:#007bff; color:white; }
+    .stop-btn { background: #d9534f; color: white; }
+    .fade-btn { background: #f0ad4e; color: white; }
+    .login-btn, .load-btn { width: 100%; background: #1DB954; color: white; margin-bottom: 8px; }
+
+    .mode-btn.active { outline: 3px solid #333; }
 
     .status-icon {
-      font-size: 14px;
+      font-size: 18px;
       padding: 6px 10px;
+      background: #eee;
       border-radius: 8px;
-      background:#eee;
-    }
-
-    .player {
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      background:white;
-      padding:14px;
-      margin-bottom:10px;
-      border-radius:12px;
-      box-shadow:0 2px 4px rgba(0,0,0,0.1);
-      cursor:grab;
     }
 
     .player.selected-swap {
-      background:#fff3cd;
-      border:2px solid #f0ad4e;
+      background: #fff3cd !important;
+      border: 3px solid #f0ad4e;
+    }
+
+    .player {
+      display:flex; justify-content:space-between; align-items:center;
+      background:white; padding:14px; margin-bottom:10px;
+      border-radius:12px; box-shadow:0 2px 4px rgba(0,0,0,0.1);
+      cursor:pointer; position:relative;
     }
 
     .player-name {
-      font-size:16px;
-      font-weight:bold;
-      display:flex;
-      align-items:center;
-      gap:8px;
+      font-size:18px; font-weight:bold; flex:1;
+      display:flex; align-items:center; gap:8px;
     }
 
     .play-btn {
-      background:#28a745;
+      background:#28a745; color:white; min-width:100px;
+    }
+
+    .bench-divider {
+      border-top:4px solid black;
+      margin:20px 0 10px;
+      padding-top:10px;
+      font-weight:bold;
+    }
+
+    .test-btn {
+      background:#007bff;
       color:white;
-      min-width:90px;
     }
   </style>
 </head>
+
 <body>
 
-<h1>Walk-Up Music</h1>
+<h1>⚾ Walk-Up Music</h1>
+
+<button class="login-btn" onclick="loginSpotify()">Login with Spotify</button>
+
+<div>
+  <label><strong>Paste Player JSON</strong></label>
+  <textarea id="jsonInput">[
+{"name": "Brad", "number": 30, "uri": "spotify:track:1GzNGrxi4NIOKu0Z4npUss", "startMs": 0}
+]</textarea>
+  <button class="load-btn" onclick="loadRosterFromJson()">Load JSON</button>
+</div>
 
 <div class="controls">
   <button class="fade-btn" onclick="fadeOut()">Fade Out</button>
   <button class="stop-btn" onclick="stopAll()">Stop</button>
 
-  <span id="internetDot" class="status-icon">WiFi</span>
-  <span id="spotifyDot" class="status-icon">Spotify</span>
+  <span id="internetDot" class="status-icon">● WiFi</span>
+  <span id="spotifyDot" class="status-icon">● Spotify</span>
 
-  <button class="test-btn" onclick="playTestSound()">Test Sound</button>
+  <button class="test-btn" onclick="playTestSound()">🔊 Test Sound</button>
+</div>
+
+<div style="margin-bottom:12px; display:flex; gap:8px;">
+  <button id="lineupBtn" class="mode-btn" onclick="toggleLineupMode()">Set Lineup Order</button>
+  <button id="subBtn" class="mode-btn" onclick="toggleSubMode()">Substitute</button>
 </div>
 
 <div id="players"></div>
 
 <script>
-let spotifyPlayer;
-let deviceId;
-let accessToken = null;
+let spotifyPlayer, deviceId, accessToken = null, fadeTimer = null;
 let currentBatterIndex = null;
+let lineupMode = false, subMode = false;
+let lineupSelections = [];
+let swapSelections = [];
 
 const clientId = 'cfcbe7373fe441de9787e80668277b0e';
 const redirectUri = 'https://chadcull.github.io/spotify-walkup/callback';
 
-let roster = [
-  { name:'Brad', number:30, uri:'spotify:track:1GzNGrxi4NIOKu0Z4npUss', startMs:0 },
-  { name:'Jake', number:12, uri:'spotify:track:52KvuGmgcgRdrLMXOtda0E', startMs:5000 },
-  { name:'Carter', number:21, uri:'spotify:track:1dGg92GTw7PeonUfyPmpCp', startMs:0 }
-];
+window.spotifyPlayerReady = false;
+
+let roster = [];
+
+function loadRosterFromJson(){
+  try {
+    roster = JSON.parse(document.getElementById('jsonInput').value);
+    renderRoster();
+  } catch(e){
+    alert('Invalid JSON');
+  }
+}
+
+function updateStatusDots(){
+  document.getElementById('internetDot').style.background =
+    navigator.onLine ? '#b6f7b6' : '#f7b6b6';
+
+  document.getElementById('spotifyDot').style.background =
+    window.spotifyPlayerReady ? '#b6f7b6' : '#f7b6b6';
+}
+
+setInterval(updateStatusDots, 2000);
 
 function renderRoster(){
-  const c=document.getElementById('players');
+  const c = document.getElementById('players');
   c.innerHTML='';
 
   roster.forEach((p,i)=>{
-    const div=document.createElement('div');
+    const div = document.createElement('div');
     div.className='player';
 
     const icon = (i === currentBatterIndex)
-      ? '<img src="images/bat.png" style="width:26px;height:auto">'
+      ? '<img src="images/bat.png" style="width:26px;height:auto;">'
       : '⚾';
 
-    div.innerHTML=`
+    div.innerHTML = `
       <div class="player-name">${icon} ${i+1}. ${p.name} (#${p.number})</div>
-      <button class="play-btn">Play</button>
+      <button class="play-btn">▶ Play</button>
     `;
 
-    div.querySelector('.play-btn').addEventListener('click',()=>playSong(i));
+    div.querySelector('.play-btn')
+      .addEventListener('click',(e)=>{ e.stopPropagation(); playSong(i); });
+
     c.appendChild(div);
   });
 }
@@ -135,23 +163,33 @@ async function playSong(i){
   currentBatterIndex = i;
   renderRoster();
 
-  if(!accessToken || !deviceId) return;
+  if(!accessToken || !window.spotifyPlayerReady){
+    alert('Spotify not ready');
+    return;
+  }
 
-  await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,{ 
+  await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,{
     method:'PUT',
     headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
     body:JSON.stringify({uris:[roster[i].uri]})
   });
+
+  setTimeout(()=>spotifyPlayer.seek(roster[i].startMs),600);
+}
+
+function stopAll(){
+  if(spotifyPlayer) spotifyPlayer.pause();
 }
 
 function fadeOut(){
   if(!spotifyPlayer) return;
-  let v=1;
-  const step=0.05;
-  const t=setInterval(()=>{
-    v-=step;
-    if(v<=0){
+
+  let v = 1;
+  const t = setInterval(()=>{
+    v -= 0.1;
+    if(v <= 0){
       spotifyPlayer.setVolume(0);
+      spotifyPlayer.pause();
       clearInterval(t);
       return;
     }
@@ -159,27 +197,34 @@ function fadeOut(){
   },100);
 }
 
-function stopAll(){
-  if(spotifyPlayer) spotifyPlayer.pause();
-}
-
 function playTestSound(){
-  const audio=new Audio('assets/test.mp3');
-  audio.volume=1;
-  audio.play().catch(()=>{
-    alert('Tap screen once then try again');
+  const audio = new Audio('assets/test.mp3');
+  audio.volume = 1;
+
+  audio.play().catch(err=>{
+    alert('Tap screen once, then try again');
+    console.error(err);
   });
 }
 
-function updateStatus(){
-  document.getElementById('internetDot').style.background=navigator.onLine?'#b6f7b6':'#f7b6b6';
-  document.getElementById('spotifyDot').style.background=window.spotifyPlayerReady?'#b6f7b6':'#f7b6b6';
-}
+window.onSpotifyWebPlaybackSDKReady = async ()=>{
+  spotifyPlayer = new Spotify.Player({
+    name:'Walkup',
+    getOAuthToken:cb=>cb(accessToken),
+    volume:1
+  });
 
-setInterval(updateStatus,2000);
+  spotifyPlayer.addListener('ready',({device_id})=>{
+    deviceId = device_id;
+    window.spotifyPlayerReady = true;
+  });
+
+  spotifyPlayer.connect();
+};
 
 renderRoster();
 </script>
+
 <script src="https://sdk.scdn.co/spotify-player.js"></script>
 </body>
 </html>
