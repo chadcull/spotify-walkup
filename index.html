@@ -203,6 +203,118 @@
       box-shadow: var(--shadow);
     }
 
+    .help-logo {
+      width: 40px;
+      height: auto;
+      vertical-align: middle;
+      cursor: pointer;
+      border-radius: 50%;
+    }
+
+    .help-logo:active {
+      transform: scale(0.96);
+    }
+
+    .help-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.72);
+      padding: 14px;
+    }
+
+    .help-modal.visible {
+      display: block;
+    }
+
+    .help-modal-content {
+      background: #fff;
+      max-width: 760px;
+      max-height: calc(100vh - 28px);
+      margin: 0 auto;
+      border-radius: 16px;
+      overflow: auto;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    }
+
+    .help-modal-header {
+      position: sticky;
+      top: 0;
+      background: #222;
+      color: white;
+      padding: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      z-index: 2;
+    }
+
+    .help-modal-header h2 {
+      margin: 0;
+      font-size: 20px;
+      text-align: left;
+    }
+
+    .help-close-btn {
+      background: var(--red);
+      color: white;
+      font-weight: bold;
+      min-width: 72px;
+    }
+
+    .help-modal-body {
+      padding: 14px;
+      line-height: 1.4;
+    }
+
+    .help-section {
+      background: #f7f7f7;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .help-section h3 {
+      margin-top: 0;
+    }
+
+    .help-section ol,
+    .help-section ul {
+      padding-left: 22px;
+      margin-bottom: 0;
+    }
+
+    .help-section li {
+      margin-bottom: 7px;
+    }
+
+    .legend-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .legend-item {
+      background: white;
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: var(--shadow);
+      font-size: 14px;
+    }
+
+    .legend-symbol {
+      display: inline-block;
+      min-width: 34px;
+      font-weight: bold;
+    }
+
+    .danger-note {
+      background: #fff3cd;
+      border-left: 5px solid var(--orange);
+    }
+
     @media (max-width: 560px) {
       body { padding: 10px; }
       .sticky-game-controls { padding: 8px 8px 4px; }
@@ -218,11 +330,80 @@
       .player, .clip-card { padding: 6px; }
       .player-name, .clip-name { font-size: 16px; }
       .play-btn { min-width: 82px; }
+      .help-modal { padding: 8px; }
+      .help-modal-content { max-height: calc(100vh - 16px); border-radius: 10px; }
+      .help-modal-header { padding: 10px; }
+      .help-modal-header h2 { font-size: 18px; }
+      .help-modal-body { padding: 10px; }
+      .legend-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <h1>⚾ Music Manager <img src="images/rumblePony.png" alt="Rumble Ponies" style="width:40px;height:auto;vertical-align:middle;"></h1>
+  <h1>⚾ Music Manager <img src="images/rumblePony.png" alt="Rumble Ponies Help" class="help-logo" onclick="openHelpModal()" title="Open instructions and legend"></h1>
+
+  <div id="helpModal" class="help-modal" onclick="handleHelpBackdropClick(event)">
+    <div class="help-modal-content" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+      <div class="help-modal-header">
+        <h2 id="helpModalTitle">⚾ Ballpark Music Manager Help</h2>
+        <button class="help-close-btn" onclick="closeHelpModal()">Close</button>
+      </div>
+
+      <div class="help-modal-body">
+        <div class="help-section danger-note">
+          <h3>Game-Day Flow</h3>
+          <ol>
+            <li><strong>Login to Spotify</strong> before the game and make sure this browser is the active playback device.</li>
+            <li>Use <strong>Our Team</strong> for your own lineup and <strong>Opposition</strong> if the other team provides walk-up songs.</li>
+            <li>Tap a batter's <strong>Play</strong> button when they are coming up. This immediately interrupts any other music.</li>
+            <li>Use <strong>Fade Out</strong> when the umpire is ready, or <strong>Stop</strong> when you need silence right now.</li>
+            <li>The bat icon stays on the last batter so you always know where you are in the lineup.</li>
+          </ol>
+        </div>
+
+        <div class="help-section">
+          <h3>Our Team / Opposition</h3>
+          <ul>
+            <li><strong>Set Lineup Order:</strong> turn this on, then tap players in batting order. Tap a selected player again to remove them from the order.</li>
+            <li><strong>Substitute:</strong> turn this on, then tap two players to swap their positions.</li>
+            <li><strong>Reset Data:</strong> paste roster JSON and load it. This clears lineup/substitute state for that team only.</li>
+            <li><strong>Bench:</strong> once a lineup is set, everyone not selected appears below the bench divider.</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3>Extra Music</h3>
+          <ul>
+            <li><strong>Play a Song:</strong> starts a fresh random song from the extras playlist. It does not resume a song you previously stopped.</li>
+            <li><strong>Ballpark Clips:</strong> clips play from their saved start time and automatically fade out at their saved end time.</li>
+            <li><strong>Fade Out / Stop:</strong> both work on playlist songs, clips, and batter walk-up music.</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3>Legend</h3>
+          <div class="legend-grid">
+            <div class="legend-item"><span class="legend-symbol">⚾</span> Player is listed but is not the current batter.</div>
+            <div class="legend-item"><span class="legend-symbol">🏏</span> Current/last batter position. Follow this for lineup tracking.</div>
+            <div class="legend-item"><span class="legend-symbol">▶</span> Play this batter, clip, or playlist song.</div>
+            <div class="legend-item"><span class="legend-symbol">🟩</span> Green Spotify/WiFi status means ready or connected.</div>
+            <div class="legend-item"><span class="legend-symbol">🟥</span> Red Spotify/WiFi status means disconnected or not ready.</div>
+            <div class="legend-item"><span class="legend-symbol">🟨</span> Yellow highlighted player means selected for substitution.</div>
+          </div>
+        </div>
+
+        <div class="help-section">
+          <h3>Tips</h3>
+          <ul>
+            <li>Keep Spotify open and active on this device before first pitch.</li>
+            <li>Use the sound test before the game to confirm the speaker volume.</li>
+            <li>For opponent songs, only load their tab if you actually have their data. Otherwise, ignore it completely.</li>
+            <li>If Spotify gets weird, stop playback, refresh the page, and login again. Because technology enjoys humbling us.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="login-section">
     <button class="login-btn" onclick="loginSpotify()">Login to Spotify</button>
@@ -389,6 +570,28 @@
     function $(id) {
       return document.getElementById(id);
     }
+
+    function openHelpModal() {
+      $('helpModal').classList.add('visible');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeHelpModal() {
+      $('helpModal').classList.remove('visible');
+      document.body.style.overflow = '';
+    }
+
+    function handleHelpBackdropClick(event) {
+      if (event.target.id === 'helpModal') {
+        closeHelpModal();
+      }
+    }
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && $('helpModal').classList.contains('visible')) {
+        closeHelpModal();
+      }
+    });
 
     function setNowPlaying(text) {
       $('nowPlaying').innerText = text || 'Nothing playing.';
