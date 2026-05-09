@@ -61,6 +61,16 @@
       margin-bottom: 10px;
       border-radius: 10px;
       box-shadow: var(--shadow);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: nowrap;
+    }
+
+    .login-section button {
+      flex: 1 1 0;
+      width: 50%;
+      white-space: nowrap;
     }
 
     .sticky-game-controls {
@@ -195,6 +205,40 @@
       margin: 6px 0 10px;
     }
 
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .field label {
+      display: block;
+      font-weight: bold;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 14px;
+      background: white;
+    }
+
+    .settings-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .manual-json-panel {
+      margin-top: 12px;
+    }
+
     .empty-state {
       background: #fff;
       padding: 14px;
@@ -323,7 +367,6 @@
       .row-controls { margin-bottom: 2px; }
       .tabs { grid-template-columns: 1fr; }
       .control-row button { flex: 1 1 auto; }
-      .login-section .login-btn { width: 100%; }
       .tabs { flex-wrap: nowrap; overflow-x: auto; }
       .tabs .tab-btn { flex: 1 0 auto; }
       .team-action-card { top: 112px; }
@@ -336,6 +379,7 @@
       .help-modal-header h2 { font-size: 18px; }
       .help-modal-body { padding: 10px; }
       .legend-grid { grid-template-columns: 1fr; }
+      .settings-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -407,6 +451,7 @@
 
   <div class="login-section">
     <button class="login-btn" onclick="loginSpotify()">Login to Spotify</button>
+    <button id="tabSettings" class="save-btn" onclick="showTab('settings')">Settings</button>
   </div>
 
   <div class="sticky-game-controls">
@@ -429,12 +474,51 @@
     </div>
   </div>
 
-  <section id="panelOur" class="tab-panel active">
+    <section id="panelSettings" class="tab-panel">
+    <div class="panel-card">
+      <h2>Settings</h2>
+      <p class="hint">
+        Connect a Google Spreadsheet as the game-day source of truth. The sheet must contain tabs named
+        <strong>Our Team</strong>, <strong>Opposition</strong>, and <strong>Clips</strong>. Make the spreadsheet readable by link.
+      </p>
+
+      <div class="settings-grid">
+        <div class="field">
+          <label for="spreadsheetUrlInput">Google Spreadsheet URL</label>
+          <input id="spreadsheetUrlInput" type="url" placeholder="https://docs.google.com/spreadsheets/d/..." />
+        </div>
+        <div class="field">
+          <label for="playlistUrlInput">Spotify Playlist URL</label>
+          <input id="playlistUrlInput" type="url" placeholder="https://open.spotify.com/playlist/..." />
+        </div>
+        <div class="field">
+          <label for="playlistTrackCountInput">Playlist Track Count</label>
+          <input id="playlistTrackCountInput" type="number" min="1" step="1" placeholder="100" />
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button class="save-btn" onclick="saveSettingsFromInputs()">Save Settings</button>
+        <button class="load-btn" onclick="importRosterFromSheet('our')">Import Our Team from Sheet</button>
+        <button class="load-btn" onclick="importRosterFromSheet('opponents')">Import Opposition from Sheet</button>
+        <button class="load-btn" onclick="importClipsFromSheet()">Import Clips from Sheet</button>
+        <button class="test-btn" onclick="importAllFromSheet()">Import All from Sheet</button>
+      </div>
+
+      <p class="hint">
+        Importing a roster replaces that saved roster and clears its lineup/substitution state. Importing clips replaces the saved clips.
+        Existing manual JSON import is still available in each tab as a game-day fallback.
+      </p>
+    </div>
+  </section>
+
+<section id="panelOur" class="tab-panel active">
     <div class="panel-card team-action-card">
       <div class="row-controls">
         <button id="ourLineupBtn" class="mode-btn" onclick="toggleLineupMode('our')">Set Lineup Order</button>
         <button id="ourSubBtn" class="mode-btn" onclick="toggleSubMode('our')">Substitute</button>
-        <button id="ourResetBtn" class="load-btn" onclick="toggleResetPanel('our')">Reset Data</button>
+        <!-- <button class="save-btn" onclick="importRosterFromSheet('our')">Import from Sheet</button> -->
+        <button id="ourResetBtn" class="load-btn" onclick="toggleResetPanel('our')">JSON</button>
       </div>
       <div id="ourResetPanel" class="reset-panel">
         <label><strong>Paste Our Team Player JSON</strong></label>
@@ -451,7 +535,8 @@
       <div class="row-controls">
         <button id="opponentsLineupBtn" class="mode-btn" onclick="toggleLineupMode('opponents')">Set Lineup Order</button>
         <button id="opponentsSubBtn" class="mode-btn" onclick="toggleSubMode('opponents')">Substitute</button>
-        <button id="opponentsResetBtn" class="load-btn" onclick="toggleResetPanel('opponents')">Reset Data</button>
+        <!-- <button class="save-btn" onclick="importRosterFromSheet('opponents')">Import from Sheet</button> -->
+        <button id="opponentsResetBtn" class="load-btn" onclick="toggleResetPanel('opponents')">JSON</button>
       </div>
       <div id="opponentsResetPanel" class="reset-panel">
         <label><strong>Paste Opponent Player JSON</strong></label>
@@ -476,7 +561,8 @@
     <div class="panel-card">
       <h3>Ballpark Clips</h3>
       <div class="row-controls">
-        <button id="clipsResetBtn" class="load-btn" onclick="toggleClipsResetPanel()">Reset Clip Data</button>
+        <button class="save-btn" onclick="importClipsFromSheet()">Import from Sheet</button>
+        <button id="clipsResetBtn" class="load-btn" onclick="toggleClipsResetPanel()">JSON</button>
       </div>
       <div id="clipsResetPanel" class="reset-panel">
         <label><strong>Paste Clip JSON</strong></label>
@@ -498,15 +584,19 @@
     const clientId = 'cfcbe7373fe441de9787e80668277b0e';
     const redirectUri = 'https://chadcull.github.io/spotify-walkup/callback';
 
-    // Your hardcoded ballpark playlist.
-    const playlistUri = 'spotify:playlist:779KcPDKB2wIrBD6lnQgXZ';
+    // Default ballpark playlist. Settings can override this without editing code.
+    const defaultPlaylistUri = 'spotify:playlist:779KcPDKB2wIrBD6lnQgXZ';
+    const defaultPlaylistTrackCount = 100;
+    const settingsStorageKey = 'bbmm_settings';
 
-    // You said the playlist has about 100 songs. This is used to pick a fresh random offset.
-    // If you later know the exact count has changed, update this number.
-    const playlistTrackCount = 100;
+    let appSettings = {
+      spreadsheetUrl: '',
+      playlistUrl: '',
+      playlistUri: defaultPlaylistUri,
+      playlistTrackCount: defaultPlaylistTrackCount
+    };
 
     const clipFadeMs = 2000;
-    const spotifyFadeInMs = 750;
 
     window.spotifyPlayerReady = false;
 
@@ -622,6 +712,247 @@
       clips = savedClips ? JSON.parse(savedClips) : [...defaultClips];
     }
 
+    function loadSettings() {
+      const saved = localStorage.getItem(settingsStorageKey);
+      if (saved) {
+        try {
+          appSettings = { ...appSettings, ...JSON.parse(saved) };
+        } catch (e) {
+          console.error('Could not parse saved settings', e);
+        }
+      }
+    }
+
+    function hydrateSettingsInputs() {
+      $('spreadsheetUrlInput').value = appSettings.spreadsheetUrl || '';
+      $('playlistUrlInput').value = appSettings.playlistUrl || '';
+      $('playlistTrackCountInput').value = appSettings.playlistTrackCount || defaultPlaylistTrackCount;
+    }
+
+    function saveSettingsFromInputs() {
+      try {
+        const spreadsheetUrl = $('spreadsheetUrlInput').value.trim();
+        const playlistUrl = $('playlistUrlInput').value.trim();
+        const playlistTrackCount = Number($('playlistTrackCountInput').value || defaultPlaylistTrackCount);
+
+        if (spreadsheetUrl) extractSpreadsheetId(spreadsheetUrl);
+        if (playlistUrl) appSettings.playlistUri = spotifyPlaylistInputToUri(playlistUrl);
+        if (!Number.isFinite(playlistTrackCount) || playlistTrackCount < 1) {
+          throw new Error('Playlist Track Count must be a positive number.');
+        }
+
+        appSettings.spreadsheetUrl = spreadsheetUrl;
+        appSettings.playlistUrl = playlistUrl;
+        appSettings.playlistTrackCount = playlistTrackCount;
+
+        localStorage.setItem(settingsStorageKey, JSON.stringify(appSettings));
+        setNowPlaying('Settings saved.');
+      } catch (e) {
+        console.error(e);
+        alert('Settings could not be saved: ' + e.message);
+      }
+    }
+
+    function extractSpreadsheetId(url) {
+      const match = String(url || '').match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if (!match) throw new Error('Could not find a Google Spreadsheet ID in the URL.');
+      return match[1];
+    }
+
+    function buildSheetCsvUrl(sheetName) {
+      if (!appSettings.spreadsheetUrl) {
+        throw new Error('Add and save a Google Spreadsheet URL in Settings first.');
+      }
+
+      const spreadsheetId = extractSpreadsheetId(appSettings.spreadsheetUrl);
+      return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+    }
+
+    async function fetchSheetRows(sheetName) {
+      const url = buildSheetCsvUrl(sheetName);
+      const res = await fetch(url);
+
+      if (!res.ok) {
+        throw new Error(`Could not read the ${sheetName} sheet. Make sure the spreadsheet is readable by link.`);
+      }
+
+      const csvText = await res.text();
+      const rows = parseCsv(csvText);
+      return rows.slice(1); // skip header row
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let value = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const next = text[i + 1];
+
+        if (char === '"' && inQuotes && next === '"') {
+          value += '"';
+          i++;
+        } else if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          row.push(value);
+          value = '';
+        } else if ((char === '\n' || char === '\r') && !inQuotes) {
+          if (char === '\r' && next === '\n') i++;
+          row.push(value);
+          if (row.some(cell => String(cell).trim() !== '')) rows.push(row);
+          row = [];
+          value = '';
+        } else {
+          value += char;
+        }
+      }
+
+      row.push(value);
+      if (row.some(cell => String(cell).trim() !== '')) rows.push(row);
+      return rows;
+    }
+
+    function spotifyTrackInputToUri(value) {
+      const raw = String(value || '').trim();
+
+      if (raw.startsWith('spotify:track:')) return raw;
+
+      const match = raw.match(/open\.spotify\.com\/track\/([A-Za-z0-9]+)/);
+      if (match) return 'spotify:track:' + match[1];
+
+      throw new Error('Invalid Spotify track URL/URI: ' + raw);
+    }
+
+    function spotifyPlaylistInputToUri(value) {
+      const raw = String(value || '').trim();
+
+      if (raw.startsWith('spotify:playlist:')) return raw;
+
+      const match = raw.match(/open\.spotify\.com\/playlist\/([A-Za-z0-9]+)/);
+      if (match) return 'spotify:playlist:' + match[1];
+
+      throw new Error('Invalid Spotify playlist URL/URI: ' + raw);
+    }
+
+    function rowToPlayer(row, rowNumber) {
+      const number = String(row[0] || '').trim();
+      const name = String(row[1] || '').trim();
+      const startSeconds = String(row[3] || '').trim();
+      const spotifyUrl = String(row[4] || '').trim();
+
+      if (!number && !name && !spotifyUrl) return null;
+
+      if (!number) throw new Error(`Row ${rowNumber}: missing player number.`);
+      if (!name) throw new Error(`Row ${rowNumber}: missing player name.`);
+      if (!spotifyUrl) throw new Error(`Row ${rowNumber}: missing Spotify Track URL.`);
+
+      const parsedNumber = Number(number);
+      const parsedStart = Number(startSeconds || 0);
+
+      if (!Number.isFinite(parsedNumber)) throw new Error(`Row ${rowNumber}: player number must be numeric.`);
+      if (!Number.isFinite(parsedStart)) throw new Error(`Row ${rowNumber}: start time must be numeric seconds.`);
+
+      return {
+        name,
+        number: parsedNumber,
+        uri: spotifyTrackInputToUri(spotifyUrl),
+        startMs: Math.round(parsedStart * 1000)
+      };
+    }
+
+    function rowToClip(row, rowNumber) {
+      const order = String(row[0] || '').trim();
+      const name = String(row[1] || '').trim();
+      const spotifyUrl = String(row[2] || '').trim();
+      const startSeconds = String(row[3] || '').trim();
+      const endSeconds = String(row[4] || '').trim();
+
+      if (!name && !spotifyUrl) return null;
+
+      if (!name) throw new Error(`Row ${rowNumber}: missing clip name.`);
+      if (!spotifyUrl) throw new Error(`Row ${rowNumber}: missing Spotify Track URL.`);
+      if (endSeconds === '') throw new Error(`Row ${rowNumber}: missing end time.`);
+
+      const parsedOrder = Number(order || rowNumber);
+      const parsedStart = Number(startSeconds || 0);
+      const parsedEnd = Number(endSeconds);
+
+      if (!Number.isFinite(parsedStart)) throw new Error(`Row ${rowNumber}: start time must be numeric seconds.`);
+      if (!Number.isFinite(parsedEnd)) throw new Error(`Row ${rowNumber}: end time must be numeric seconds.`);
+
+      return {
+        order: Number.isFinite(parsedOrder) ? parsedOrder : rowNumber,
+        name,
+        uri: spotifyTrackInputToUri(spotifyUrl),
+        startMs: Math.round(parsedStart * 1000),
+        endMs: Math.round(parsedEnd * 1000)
+      };
+    }
+
+    async function importRosterFromSheet(teamKey) {
+      const team = teams[teamKey];
+
+      try {
+        saveSettingsFromInputs();
+        const rows = await fetchSheetRows(team.label === 'Opponents' ? 'Opposition' : team.label);
+        const importedRoster = rows
+          .map((row, index) => rowToPlayer(row, index + 2))
+          .filter(Boolean);
+
+        validateRoster(importedRoster);
+
+        team.roster = importedRoster;
+        team.lineupSelections = [];
+        team.swapSelections = [];
+        team.currentBatterIndex = null;
+        team.lineupMode = false;
+        team.subMode = false;
+
+        $(teamKey + 'LineupBtn').classList.remove('active');
+        $(teamKey + 'SubBtn').classList.remove('active');
+
+        saveTeamState(teamKey);
+        hydrateTextAreas();
+        renderRoster(teamKey);
+        setNowPlaying(`${team.label} imported from Google Sheet.`);
+      } catch (e) {
+        console.error(e);
+        alert(`Could not import ${team.label}: ` + e.message);
+      }
+    }
+
+    async function importClipsFromSheet() {
+      try {
+        saveSettingsFromInputs();
+        const rows = await fetchSheetRows('Clips');
+        const importedClips = rows
+          .map((row, index) => rowToClip(row, index + 2))
+          .filter(Boolean)
+          .sort((a, b) => a.order - b.order)
+          .map(({ order, ...clip }) => clip);
+
+        validateClips(importedClips);
+
+        clips = importedClips;
+        saveClips();
+        hydrateTextAreas();
+        renderClips();
+        setNowPlaying('Clips imported from Google Sheet.');
+      } catch (e) {
+        console.error(e);
+        alert('Could not import Clips: ' + e.message);
+      }
+    }
+
+    async function importAllFromSheet() {
+      await importRosterFromSheet('our');
+      await importRosterFromSheet('opponents');
+      await importClipsFromSheet();
+    }
+
     function hydrateTextAreas() {
       $('ourJsonInput').value = JSON.stringify(teams.our.roster, null, 2);
       $('opponentsJsonInput').value = JSON.stringify(teams.opponents.roster, null, 2);
@@ -631,7 +962,7 @@
     function showTab(tabKey) {
       activeTab = tabKey;
 
-      ['our', 'opponents', 'extra'].forEach(key => {
+      ['our', 'opponents', 'extra', 'settings'].forEach(key => {
         $('tab' + capitalize(key)).classList.toggle('active', key === tabKey);
         $('panel' + capitalize(key)).classList.toggle('active', key === tabKey);
       });
@@ -882,11 +1213,9 @@
       clearPlaybackTimers();
       resetCurrentBatterMarkers();
 
-      const randomPosition = Math.floor(Math.random() * playlistTrackCount);
+      const randomPosition = Math.floor(Math.random() * Number(appSettings.playlistTrackCount || defaultPlaylistTrackCount));
       activePlayback = { kind: 'playlistSong', firstTrackId: null };
       setNowPlaying('Playing a fresh ballpark song.');
-
-      await spotifyPlayer.setVolume(0);
 
       await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
@@ -895,7 +1224,7 @@
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          context_uri: playlistUri,
+          context_uri: appSettings.playlistUri || defaultPlaylistUri,
           offset: { position: randomPosition },
           position_ms: 0
         })
@@ -907,7 +1236,7 @@
           activePlayback.firstTrackId = state.track_window.current_track.id;
           setNowPlaying('Ballpark song: ' + state.track_window.current_track.name);
         }
-        fadeIn(spotifyFadeInMs);
+        spotifyPlayer.setVolume(1);
       }, 700);
     }
 
@@ -966,8 +1295,6 @@
     }
 
     async function startTrack(uri, startMs) {
-      await spotifyPlayer.setVolume(0);
-
       await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         headers: {
@@ -980,36 +1307,11 @@
       setTimeout(async () => {
         try {
           await spotifyPlayer.seek(startMs);
-          fadeIn(spotifyFadeInMs);
+          await spotifyPlayer.setVolume(1);
         } catch (e) {
-          console.error('Seek/fade-in failed', e);
+          console.error('Seek/volume failed', e);
         }
       }, 600);
-    }
-
-    function fadeIn(durationMs = 750) {
-      if (!spotifyPlayer) return;
-
-      if (fadeTimer) clearInterval(fadeTimer);
-
-      const steps = 15;
-      const intervalMs = Math.max(30, Math.floor(durationMs / steps));
-      let step = 0;
-
-      spotifyPlayer.setVolume(0);
-
-      fadeTimer = setInterval(async () => {
-        step++;
-        const nextVolume = Math.min(1, step / steps);
-
-        try { await spotifyPlayer.setVolume(nextVolume); } catch (e) { console.error(e); }
-
-        if (step >= steps) {
-          clearInterval(fadeTimer);
-          fadeTimer = null;
-          try { await spotifyPlayer.setVolume(1); } catch (e) { console.error(e); }
-        }
-      }, intervalMs);
     }
 
     async function stopAll() {
@@ -1224,10 +1526,12 @@
     }
 
     function init() {
+      loadSettings();
       loadTeamState('our');
       loadTeamState('opponents');
       loadClips();
       hydrateTextAreas();
+      hydrateSettingsInputs();
       renderAllRosters();
       renderClips();
       updateStatusDots();
