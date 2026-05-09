@@ -1217,27 +1217,39 @@
       activePlayback = { kind: 'playlistSong', firstTrackId: null };
       setNowPlaying('Playing a fresh ballpark song.');
 
-      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          context_uri: appSettings.playlistUri || defaultPlaylistUri,
-          offset: { position: randomPosition },
-          position_ms: 0
-        })
-      });
+      try {
+        await spotifyPlayer.setVolume(0);
 
-      setTimeout(async () => {
-        const state = await spotifyPlayer.getCurrentState();
-        if (state && state.track_window && state.track_window.current_track) {
-          activePlayback.firstTrackId = state.track_window.current_track.id;
-          setNowPlaying('Ballpark song: ' + state.track_window.current_track.name);
-        }
-        spotifyPlayer.setVolume(1);
-      }, 700);
+        await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            context_uri: appSettings.playlistUri || defaultPlaylistUri,
+            offset: { position: randomPosition },
+            position_ms: 0
+          })
+        });
+
+        setTimeout(async () => {
+          try {
+            const state = await spotifyPlayer.getCurrentState();
+            if (state && state.track_window && state.track_window.current_track) {
+              activePlayback.firstTrackId = state.track_window.current_track.id;
+              setNowPlaying('Ballpark song: ' + state.track_window.current_track.name);
+            }
+            await fadeInVolume(750);
+          } catch (e) {
+            console.error('Playlist fade-in failed', e);
+            try { await spotifyPlayer.setVolume(1); } catch (_) {}
+          }
+        }, 250);
+      } catch (e) {
+        console.error('Playlist start failed', e);
+        try { await spotifyPlayer.setVolume(1); } catch (_) {}
+      }
     }
 
     function renderClips() {
@@ -1295,23 +1307,83 @@
     }
 
     async function startTrack(uri, startMs) {
-      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ uris: [uri] })
-      });
+      await fadeInTrack(uri, startMs, 750);
+    }
 
-      setTimeout(async () => {
-        try {
-          await spotifyPlayer.seek(startMs);
-          await spotifyPlayer.setVolume(1);
-        } catch (e) {
-          console.error('Seek/volume failed', e);
+    async function fadeInTrack(uri, startMs, durationMs = 750) {
+      if (!spotifyPlayer) return;
+
+      if (fadeTimer) clearInterval(fadeTimer);
+      fadeTimer = null;
+
+      const safeStartMs = Math.max(0, Number(startMs || 0));
+
+      try {
+        // Start muted so Spotify does not leak the beginning of the song
+        // before the seek lands.
+        await spotifyPlayer.setVolume(0);
+
+        await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            uris: [uri],
+            position_ms: safeStartMs
+          })
+        });
+
+        // Give Spotify a brief moment to apply playback/position, then enforce seek.
+        // Spotify can be a bit spicy about timing here.
+        setTimeout(async () => {
+          try {
+            await spotifyPlayer.seek(safeStartMs);
+            await fadeInVolume(durationMs);
+          } catch (e) {
+            console.error('Seek/fade-in failed', e);
+            try { await spotifyPlayer.setVolume(1); } catch (_) {}
+          }
+        }, 250);
+      } catch (e) {
+        console.error('Start track failed', e);
+        try { await spotifyPlayer.setVolume(1); } catch (_) {}
+      }
+    }
+
+    function fadeInVolume(durationMs = 750) {
+      return new Promise(resolve => {
+        if (!spotifyPlayer) {
+          resolve();
+          return;
         }
-      }, 600);
+
+        if (fadeTimer) clearInterval(fadeTimer);
+
+        const steps = 15;
+        const intervalMs = Math.max(25, Math.floor(durationMs / steps));
+        let step = 0;
+
+        fadeTimer = setInterval(async () => {
+          step++;
+          const nextVolume = Math.min(1, step / steps);
+
+          try {
+            await spotifyPlayer.setVolume(nextVolume);
+          } catch (e) {
+            console.error('Fade-in volume failed', e);
+          }
+
+          if (step >= steps) {
+            clearInterval(fadeTimer);
+            fadeTimer = null;
+
+            try { await spotifyPlayer.setVolume(1); } catch (e) { console.error(e); }
+            resolve();
+          }
+        }, intervalMs);
+      });
     }
 
     async function stopAll() {
