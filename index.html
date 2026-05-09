@@ -64,7 +64,13 @@
       display: flex;
       gap: 8px;
       align-items: center;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+    }
+
+    .login-section button {
+      flex: 1 1 0;
+      width: 50%;
+      white-space: nowrap;
     }
 
     .sticky-game-controls {
@@ -361,7 +367,6 @@
       .row-controls { margin-bottom: 2px; }
       .tabs { grid-template-columns: 1fr; }
       .control-row button { flex: 1 1 auto; }
-      .login-section .login-btn { width: 100%; }
       .tabs { flex-wrap: nowrap; overflow-x: auto; }
       .tabs .tab-btn { flex: 1 0 auto; }
       .team-action-card { top: 112px; }
@@ -512,8 +517,8 @@
       <div class="row-controls">
         <button id="ourLineupBtn" class="mode-btn" onclick="toggleLineupMode('our')">Set Lineup Order</button>
         <button id="ourSubBtn" class="mode-btn" onclick="toggleSubMode('our')">Substitute</button>
-        <button class="save-btn" onclick="importRosterFromSheet('our')">Import from Sheet</button>
-        <button id="ourResetBtn" class="load-btn" onclick="toggleResetPanel('our')">Manual JSON</button>
+        <!-- <button class="save-btn" onclick="importRosterFromSheet('our')">Import from Sheet</button> -->
+        <button id="ourResetBtn" class="load-btn" onclick="toggleResetPanel('our')">JSON</button>
       </div>
       <div id="ourResetPanel" class="reset-panel">
         <label><strong>Paste Our Team Player JSON</strong></label>
@@ -530,8 +535,8 @@
       <div class="row-controls">
         <button id="opponentsLineupBtn" class="mode-btn" onclick="toggleLineupMode('opponents')">Set Lineup Order</button>
         <button id="opponentsSubBtn" class="mode-btn" onclick="toggleSubMode('opponents')">Substitute</button>
-        <button class="save-btn" onclick="importRosterFromSheet('opponents')">Import from Sheet</button>
-        <button id="opponentsResetBtn" class="load-btn" onclick="toggleResetPanel('opponents')">Manual JSON</button>
+        <!-- <button class="save-btn" onclick="importRosterFromSheet('opponents')">Import from Sheet</button> -->
+        <button id="opponentsResetBtn" class="load-btn" onclick="toggleResetPanel('opponents')">JSON</button>
       </div>
       <div id="opponentsResetPanel" class="reset-panel">
         <label><strong>Paste Opponent Player JSON</strong></label>
@@ -557,7 +562,7 @@
       <h3>Ballpark Clips</h3>
       <div class="row-controls">
         <button class="save-btn" onclick="importClipsFromSheet()">Import from Sheet</button>
-        <button id="clipsResetBtn" class="load-btn" onclick="toggleClipsResetPanel()">Manual JSON</button>
+        <button id="clipsResetBtn" class="load-btn" onclick="toggleClipsResetPanel()">JSON</button>
       </div>
       <div id="clipsResetPanel" class="reset-panel">
         <label><strong>Paste Clip JSON</strong></label>
